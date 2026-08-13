@@ -8,6 +8,9 @@ export interface Film {
   format: Format
   fotoDateiname: string
   erfasstAm: string
+  fsk?: string
+  laufzeitMinuten?: number
+  barcode?: string
 }
 
 interface FilmAnlegenEingabe {
@@ -15,6 +18,9 @@ interface FilmAnlegenEingabe {
   titel: string
   format: Format
   fotoDateiname: string
+  fsk?: string
+  laufzeitMinuten?: number
+  barcode?: string
 }
 
 export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
@@ -27,12 +33,25 @@ export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
     format: eingabe.format,
     fotoDateiname: eingabe.fotoDateiname,
     erfasstAm: jetzt,
+    fsk: eingabe.fsk,
+    laufzeitMinuten: eingabe.laufzeitMinuten,
+    barcode: eingabe.barcode,
   }
 
   db.run(
-    `INSERT INTO filme (id, titel, format, foto_dateiname, erfasst_am, zuletzt_geaendert)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [film.id, film.titel, film.format, film.fotoDateiname, film.erfasstAm, jetzt],
+    `INSERT INTO filme (id, titel, format, foto_dateiname, erfasst_am, zuletzt_geaendert, fsk, laufzeit_minuten, barcode)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      film.id,
+      film.titel,
+      film.format,
+      film.fotoDateiname,
+      film.erfasstAm,
+      jetzt,
+      film.fsk ?? null,
+      film.laufzeitMinuten ?? null,
+      film.barcode ?? null,
+    ],
   )
 
   await sichereAenderungen()
@@ -42,7 +61,7 @@ export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
 export async function filmeLaden(): Promise<Film[]> {
   const db = await oeffneDatenbank()
   const ergebnis = db.exec(`
-    SELECT id, titel, format, foto_dateiname, erfasst_am
+    SELECT id, titel, format, foto_dateiname, erfasst_am, fsk, laufzeit_minuten, barcode
     FROM filme
     WHERE geloescht_am IS NULL
     ORDER BY erfasst_am DESC
@@ -56,5 +75,8 @@ export async function filmeLaden(): Promise<Film[]> {
     format: zeile[2] as Format,
     fotoDateiname: String(zeile[3]),
     erfasstAm: String(zeile[4]),
+    fsk: zeile[5] !== null ? String(zeile[5]) : undefined,
+    laufzeitMinuten: zeile[6] !== null ? Number(zeile[6]) : undefined,
+    barcode: zeile[7] !== null ? String(zeile[7]) : undefined,
   }))
 }

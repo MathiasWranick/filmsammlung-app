@@ -9,7 +9,7 @@ const DB_DATEINAME = 'filmsammlung.sqlite3'
 
 // Einfache Schema-Versionierung: Jede neue Version fügt bei Bedarf
 // weitere Spalten/Tabellen hinzu, ohne bestehende Daten zu verlieren.
-const AKTUELLE_SCHEMA_VERSION = 1
+const AKTUELLE_SCHEMA_VERSION = 2
 
 let dbInstanz: Database | null = null
 let dbWirdGeoeffnet: Promise<Database> | null = null
@@ -66,6 +66,15 @@ function fuehreMigrationenAus(db: Database): void {
         geloescht_am TEXT
       );
     `)
+  }
+
+  if (vorhandeneVersion < 2) {
+    // Neue, optionale Felder für die per Texterkennung (OCR) erfassten
+    // Angaben. ADD COLUMN verändert bestehende Datensätze nicht - dort
+    // bleiben diese Felder einfach leer (NULL).
+    db.run('ALTER TABLE filme ADD COLUMN fsk TEXT')
+    db.run('ALTER TABLE filme ADD COLUMN laufzeit_minuten INTEGER')
+    db.run('ALTER TABLE filme ADD COLUMN barcode TEXT')
   }
 
   if (vorhandeneVersion === 0) {
