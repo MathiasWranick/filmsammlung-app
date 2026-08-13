@@ -28,7 +28,7 @@ function App() {
     titel: string
     format: Format
     fotoVorderseite: File
-    fotoRueckseite: File | null
+    fotoRueckseite: File
     fsk?: string
     laufzeitMinuten?: number
     barcode?: string
@@ -38,9 +38,7 @@ function App() {
   }) {
     const id = crypto.randomUUID()
     const fotoDateiname = await fotoSpeichern(id, 'vorderseite', eingabe.fotoVorderseite)
-    const fotoRueckseiteDateiname = eingabe.fotoRueckseite
-      ? await fotoSpeichern(id, 'rueckseite', eingabe.fotoRueckseite)
-      : undefined
+    const fotoRueckseiteDateiname = await fotoSpeichern(id, 'rueckseite', eingabe.fotoRueckseite)
     const neuerFilm = await filmAnlegen({
       id,
       titel: eingabe.titel,

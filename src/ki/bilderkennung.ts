@@ -9,7 +9,14 @@
 
 // Aktuell verwendetes Modell. Falls Google dieses Modell irgendwann
 // einstellt, reicht es, hier den Modellnamen auszutauschen.
-const GEMINI_MODELL = 'gemini-3.5-flash-lite'
+//
+// Hinweis aus dem ersten Praxistest (Stufe 0.2): Mit dem günstigeren
+// "flash-lite"-Modell wurde zuverlässig nur der Titel erkannt, obwohl die
+// übrigen Angaben auf dem Rückseiten-Foto gut lesbar waren - vermutlich zu
+// schwach für das genaue Lesen von Detailtext im Bild. "flash" (statt
+// "flash-lite") ist im Vergleich immer noch sehr günstig, aber deutlich
+// leistungsfähiger bei dieser Art Detailerkennung.
+const GEMINI_MODELL = 'gemini-3.5-flash'
 
 export interface KiErkennungsErgebnis {
   titel?: string
@@ -32,17 +39,17 @@ export class ErkennungsFehler extends Error {
   }
 }
 
-const PROMPT = `Du bekommst ein oder zwei Fotos einer Film-Hülle (Vorderseite und/oder Rückseite einer DVD/Blu-ray-Hülle). Ermittle daraus folgende Angaben zum Film und antworte ausschließlich als JSON-Objekt mit genau diesen Feldern:
+const PROMPT = `Du bekommst ein oder zwei Fotos einer Film-Hülle (Vorderseite und/oder Rückseite einer DVD/Blu-ray-Hülle). Lies beide Fotos gründlich und vollständig, auch kleiner gedruckten Text (Besetzungsliste, technische Angaben, Klappentext). Ermittle daraus folgende Angaben zum Film und antworte ausschließlich als JSON-Objekt mit genau diesen Feldern. Versuche aktiv, jedes Feld auszufüllen, wenn die Information irgendwo auf einem der Fotos zu finden ist - nutze nicht vorschnell einen leeren Wert.
 
-- titel: Der deutsche Filmtitel. Steht auf der Hülle meist nur der englische Originaltitel, ergänze wenn möglich den in Deutschland gebräuchlichen deutschen Verleihtitel anhand deines Filmwissens. Wenn du dir nicht sicher bist, nimm den Titel, der auf der Hülle steht.
-- regisseur: Name des Regisseurs, falls erkennbar.
-- darsteller: Die wichtigsten Hauptdarsteller, durch Komma getrennt, falls erkennbar.
-- laufzeitMinuten: Laufzeit in Minuten als Zahl, falls angegeben (z. B. aus "Laufzeit: ca. 123 Min.").
-- fsk: Die deutsche FSK-Alterskennzeichnung als Zahl (0, 6, 12, 16 oder 18), falls ein FSK-Logo oder eine entsprechende Angabe erkennbar ist.
-- barcode: Die Ziffernfolge des EAN/Barcodes, falls lesbar.
-- handlung: Eine kurze Zusammenfassung der Handlung (2-3 Sätze), falls ein Klappentext vorhanden ist.
+- titel: Der deutsche Filmtitel. Steht auf der Hülle meist nur der englische Originaltitel, ergänze in dem Fall den in Deutschland gebräuchlichen deutschen Verleihtitel anhand deines Filmwissens. Steht bereits ein deutscher Titel groß auf dem Cover, nimm genau diesen.
+- regisseur: Name des Regisseurs/der Regisseurin, steht meist im Kleingedruckten der Rückseite (z. B. bei "Regie" oder "Buch, Produktion und Regie").
+- darsteller: Die wichtigsten Hauptdarsteller aus der Besetzungsliste, durch Komma getrennt.
+- laufzeitMinuten: Laufzeit in Minuten als Zahl, steht meist bei "Laufzeit: ca. X Min.". Falls nicht angegeben, 0 zurückgeben.
+- fsk: Die deutsche FSK-Alterskennzeichnung als Zahl (0, 6, 12, 16 oder 18) aus dem runden FSK-Logo (z. B. "FSK ab 12 freigegeben"). Falls kein FSK-Logo zu sehen ist, leeren String zurückgeben.
+- barcode: Die Ziffernfolge des EAN/Barcodes unter dem gedruckten Strichcode, meist 13 Ziffern. Falls nicht lesbar, leeren String zurückgeben.
+- handlung: Eine kurze Zusammenfassung des Klappentexts (2-3 Sätze) in eigenen Worten. Falls kein Klappentext vorhanden ist, leeren String zurückgeben.
 
-Lasse ein Feld weg oder gib einen leeren String zurück, wenn du dir bei einer Angabe nicht ausreichend sicher bist. Erfinde keine Angaben.`
+Erfinde keine Angaben, die auf den Fotos nicht zu finden sind und die du auch nicht aus gesichertem Filmwissen ergänzen kannst - aber wäge das bewusst ab: Angaben, die auf dem Foto lesbar sind, sollen nicht aus übertriebener Vorsicht weggelassen werden.`
 
 const ANTWORT_SCHEMA = {
   type: 'OBJECT',
@@ -55,6 +62,12 @@ const ANTWORT_SCHEMA = {
     barcode: { type: 'STRING' },
     handlung: { type: 'STRING' },
   },
+  // "required" zwingt das Modell, für jedes Feld aktiv einen Wert zu
+  // liefern (und sei es ein leerer String/0), statt Felder bei Unsicherheit
+  // einfach ganz aus der Antwort wegzulassen. Das hat sich im ersten
+  // Praxistest als wahrscheinlichste Ursache dafür gezeigt, dass nur der
+  // Titel erkannt wurde.
+  required: ['titel', 'regisseur', 'darsteller', 'laufzeitMinuten', 'fsk', 'barcode', 'handlung'],
 }
 
 async function dateiZuBase64(datei: File): Promise<string> {
@@ -72,8 +85,11 @@ function bildTeil(base64: string, mimeType: string) {
   return { inline_data: { mime_type: mimeType, data: base64 } }
 }
 
-// Erkennt die Filmdaten anhand des Vorderseiten-Fotos (Pflicht) und
-// optional des Rückseiten-Fotos (liefert meist die meisten Detailangaben).
+// Erkennt die Filmdaten anhand des Vorderseiten- und Rückseiten-Fotos. Die
+// meisten Detailangaben (Regisseur, Darsteller, Laufzeit, Barcode,
+// Handlung) stehen praktisch nur auf der Rückseite - das Rückseiten-Foto
+// ist im Formular deshalb ebenfalls Pflicht, auch wenn diese Funktion es
+// technisch weiterhin optional entgegennimmt.
 export async function erkenneFilmdaten(
   vorderseite: File,
   rueckseite: File | null,

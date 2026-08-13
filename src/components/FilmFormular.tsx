@@ -9,7 +9,7 @@ interface Props {
     titel: string
     format: Format
     fotoVorderseite: File
-    fotoRueckseite: File | null
+    fotoRueckseite: File
     fsk?: string
     laufzeitMinuten?: number
     barcode?: string
@@ -40,7 +40,7 @@ function FilmFormular({ onHinzufuegen }: Props) {
   // läuft sie nicht automatisch beim Foto-Auswählen, sondern erst auf
   // Knopfdruck.
   async function erkennungStarten() {
-    if (!fotoVorderseite) return
+    if (!fotoVorderseite || !fotoRueckseite) return
 
     setErkennungsHinweis(null)
     setErkennungLaeuft(true)
@@ -73,6 +73,10 @@ function FilmFormular({ onHinzufuegen }: Props) {
 
     if (!fotoVorderseite) {
       setFehler('Bitte zuerst ein Foto der Vorderseite auswählen.')
+      return
+    }
+    if (!fotoRueckseite) {
+      setFehler('Bitte auch ein Foto der Rückseite auswählen (dort stehen die meisten Detailangaben).')
       return
     }
     if (!titel.trim()) {
@@ -129,7 +133,7 @@ function FilmFormular({ onHinzufuegen }: Props) {
       </label>
 
       <label>
-        Foto Rückseite (optional, verbessert die KI-Erkennung deutlich)
+        Foto Rückseite (hier stehen die meisten Detailangaben)
         <input
           type="file"
           accept="image/*"
@@ -138,7 +142,11 @@ function FilmFormular({ onHinzufuegen }: Props) {
         />
       </label>
 
-      <button type="button" onClick={erkennungStarten} disabled={!fotoVorderseite || erkennungLaeuft}>
+      <button
+        type="button"
+        onClick={erkennungStarten}
+        disabled={!fotoVorderseite || !fotoRueckseite || erkennungLaeuft}
+      >
         {erkennungLaeuft ? 'Wird erkannt …' : 'Mit KI erkennen'}
       </button>
 
