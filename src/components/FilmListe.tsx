@@ -20,13 +20,14 @@ function FilmKarte({ film }: { film: Film }) {
 
   return (
     <li className="film-karte">
-      {fotoUrl && <img src={fotoUrl} alt={`Rückseite von ${film.titel}`} />}
+      {fotoUrl && <img src={fotoUrl} alt={`Cover von ${film.titel}`} />}
       <div>
         <strong>{film.titel}</strong>
         <div className="hint">
           {film.format}
           {film.fsk && ` · FSK ${film.fsk}`}
           {film.laufzeitMinuten && ` · ${film.laufzeitMinuten} Min.`}
+          {film.regisseur && ` · Regie: ${film.regisseur}`}
         </div>
       </div>
     </li>

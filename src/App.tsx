@@ -27,21 +27,32 @@ function App() {
   async function filmHinzufuegen(eingabe: {
     titel: string
     format: Format
-    foto: File
+    fotoVorderseite: File
+    fotoRueckseite: File | null
     fsk?: string
     laufzeitMinuten?: number
     barcode?: string
+    regisseur?: string
+    darsteller?: string
+    handlung?: string
   }) {
     const id = crypto.randomUUID()
-    const fotoDateiname = await fotoSpeichern(id, eingabe.foto)
+    const fotoDateiname = await fotoSpeichern(id, 'vorderseite', eingabe.fotoVorderseite)
+    const fotoRueckseiteDateiname = eingabe.fotoRueckseite
+      ? await fotoSpeichern(id, 'rueckseite', eingabe.fotoRueckseite)
+      : undefined
     const neuerFilm = await filmAnlegen({
       id,
       titel: eingabe.titel,
       format: eingabe.format,
       fotoDateiname,
+      fotoRueckseiteDateiname,
       fsk: eingabe.fsk,
       laufzeitMinuten: eingabe.laufzeitMinuten,
       barcode: eingabe.barcode,
+      regisseur: eingabe.regisseur,
+      darsteller: eingabe.darsteller,
+      handlung: eingabe.handlung,
     })
     setFilme((vorherigeFilme) => [neuerFilm, ...vorherigeFilme])
   }

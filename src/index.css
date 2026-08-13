@@ -39,9 +39,11 @@ body {
 }
 
 .formular input,
-.formular select {
+.formular select,
+.formular textarea {
   padding: 0.5rem;
   font-size: 1rem;
+  font-family: inherit;
 }
 
 .formular button {

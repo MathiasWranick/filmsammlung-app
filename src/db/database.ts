@@ -9,7 +9,7 @@ const DB_DATEINAME = 'filmsammlung.sqlite3'
 
 // Einfache Schema-Versionierung: Jede neue Version fügt bei Bedarf
 // weitere Spalten/Tabellen hinzu, ohne bestehende Daten zu verlieren.
-const AKTUELLE_SCHEMA_VERSION = 2
+const AKTUELLE_SCHEMA_VERSION = 3
 
 let dbInstanz: Database | null = null
 let dbWirdGeoeffnet: Promise<Database> | null = null
@@ -75,6 +75,20 @@ function fuehreMigrationenAus(db: Database): void {
     db.run('ALTER TABLE filme ADD COLUMN fsk TEXT')
     db.run('ALTER TABLE filme ADD COLUMN laufzeit_minuten INTEGER')
     db.run('ALTER TABLE filme ADD COLUMN barcode TEXT')
+  }
+
+  if (vorhandeneVersion < 3) {
+    // Zweites, optionales Foto (Rückseite). Das bisherige Feld
+    // foto_dateiname steht ab jetzt für die Vorderseite (Vorschaubild),
+    // vorhandene Datensätze aus Stufe 0.1/0.2 zeigten dort bisher ein Foto
+    // der Rückseite - das bleibt als Vorschaubild einfach bestehen.
+    db.run('ALTER TABLE filme ADD COLUMN foto_rueckseite_dateiname TEXT')
+    // Zusätzliche Felder, die die neue KI-Bilderkennung direkt liefern
+    // kann (bisher für Stufe 0.3/OMDb vorgesehen, werden jetzt schon vom
+    // Foto miterfasst, falls erkennbar).
+    db.run('ALTER TABLE filme ADD COLUMN regisseur TEXT')
+    db.run('ALTER TABLE filme ADD COLUMN darsteller TEXT')
+    db.run('ALTER TABLE filme ADD COLUMN handlung TEXT')
   }
 
   if (vorhandeneVersion === 0) {

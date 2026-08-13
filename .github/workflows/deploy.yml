@@ -28,6 +28,12 @@ jobs:
 
       - run: npm install
       - run: npm run build
+        env:
+          # Wird zur Build-Zeit in die App eingebettet, damit die
+          # Gemini-Bilderkennung im Browser funktioniert. Muss als
+          # Repository-Secret "GEMINI_API_KEY" hinterlegt sein
+          # (Settings -> Secrets and variables -> Actions).
+          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

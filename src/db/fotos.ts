@@ -2,6 +2,8 @@
 // als eigene Dateien im privaten Browser-Speicher (OPFS). Das hält die
 // Datenbank klein und schnell, auch bei einer großen Sammlung.
 
+export type FotoSeite = 'vorderseite' | 'rueckseite'
+
 async function fotosOrdner(): Promise<FileSystemDirectoryHandle> {
   const wurzel = await navigator.storage.getDirectory()
   return wurzel.getDirectoryHandle('fotos', { create: true })
@@ -12,11 +14,11 @@ function dateiEndung(datei: File): string {
   return teile.length > 1 ? teile[teile.length - 1] : 'jpg'
 }
 
-// Speichert das Foto unter einem Dateinamen, der auf die technische ID
-// des Films verweist, und gibt diesen Dateinamen zum Ablegen in der
-// Datenbank zurück.
-export async function fotoSpeichern(filmId: string, datei: File): Promise<string> {
-  const dateiname = `${filmId}.${dateiEndung(datei)}`
+// Speichert ein Foto (Vorder- oder Rückseite) unter einem Dateinamen, der
+// auf die technische ID des Films und die Seite verweist, und gibt diesen
+// Dateinamen zum Ablegen in der Datenbank zurück.
+export async function fotoSpeichern(filmId: string, seite: FotoSeite, datei: File): Promise<string> {
+  const dateiname = `${filmId}-${seite}.${dateiEndung(datei)}`
   const ordner = await fotosOrdner()
   const dateiHandle = await ordner.getFileHandle(dateiname, { create: true })
   const schreibStrom = await dateiHandle.createWritable()

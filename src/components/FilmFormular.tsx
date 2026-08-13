@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Format } from '../db/filme'
-import { erkenneText } from '../ocr/erkennung'
-import { analysiereText } from '../ocr/textAnalyse'
+import { erkenneFilmdaten, ErkennungsFehler } from '../ki/bilderkennung'
 
 const FORMATE: Format[] = ['DVD', 'Blu-ray', '4K UHD', 'Sonstiges']
 
@@ -9,48 +8,61 @@ interface Props {
   onHinzufuegen: (eingabe: {
     titel: string
     format: Format
-    foto: File
+    fotoVorderseite: File
+    fotoRueckseite: File | null
     fsk?: string
     laufzeitMinuten?: number
     barcode?: string
+    regisseur?: string
+    darsteller?: string
+    handlung?: string
   }) => Promise<void>
 }
 
 function FilmFormular({ onHinzufuegen }: Props) {
   const [titel, setTitel] = useState('')
   const [format, setFormat] = useState<Format>('DVD')
-  const [foto, setFoto] = useState<File | null>(null)
+  const [fotoVorderseite, setFotoVorderseite] = useState<File | null>(null)
+  const [fotoRueckseite, setFotoRueckseite] = useState<File | null>(null)
   const [fsk, setFsk] = useState('')
   const [laufzeit, setLaufzeit] = useState('')
   const [barcode, setBarcode] = useState('')
-  const [texterkennungLaeuft, setTexterkennungLaeuft] = useState(false)
+  const [regisseur, setRegisseur] = useState('')
+  const [darsteller, setDarsteller] = useState('')
+  const [handlung, setHandlung] = useState('')
+
+  const [erkennungLaeuft, setErkennungLaeuft] = useState(false)
+  const [erkennungsHinweis, setErkennungsHinweis] = useState<string | null>(null)
   const [wirdGespeichert, setWirdGespeichert] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
 
-  // Wird aufgerufen, sobald ein Foto ausgewählt wurde. Erkennt automatisch
-  // den aufgedruckten Text und schlägt daraus Titel/FSK/Laufzeit/Barcode
-  // vor. Alle Vorschläge bleiben danach ganz normal editierbar - falls die
-  // Erkennung daneben liegt, kann einfach von Hand korrigiert werden.
-  async function fotoAusgewaehlt(datei: File | null) {
-    setFoto(datei)
-    if (!datei) return
+  // Die KI-Erkennung kostet (wenn auch nur minimal) Kontingent, deshalb
+  // läuft sie nicht automatisch beim Foto-Auswählen, sondern erst auf
+  // Knopfdruck.
+  async function erkennungStarten() {
+    if (!fotoVorderseite) return
 
-    setFehler(null)
-    setTexterkennungLaeuft(true)
+    setErkennungsHinweis(null)
+    setErkennungLaeuft(true)
     try {
-      const rohtext = await erkenneText(datei)
-      const vorschlag = analysiereText(rohtext)
+      const ergebnis = await erkenneFilmdaten(fotoVorderseite, fotoRueckseite)
 
-      if (vorschlag.titelVorschlag && !titel.trim()) setTitel(vorschlag.titelVorschlag)
-      if (vorschlag.fsk) setFsk(vorschlag.fsk)
-      if (vorschlag.laufzeitMinuten) setLaufzeit(String(vorschlag.laufzeitMinuten))
-      if (vorschlag.barcode) setBarcode(vorschlag.barcode)
+      if (ergebnis.titel && !titel.trim()) setTitel(ergebnis.titel)
+      if (ergebnis.fsk) setFsk(ergebnis.fsk)
+      if (ergebnis.laufzeitMinuten) setLaufzeit(String(ergebnis.laufzeitMinuten))
+      if (ergebnis.barcode) setBarcode(ergebnis.barcode)
+      if (ergebnis.regisseur) setRegisseur(ergebnis.regisseur)
+      if (ergebnis.darsteller) setDarsteller(ergebnis.darsteller)
+      if (ergebnis.handlung) setHandlung(ergebnis.handlung)
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)
-      // Texterkennung ist nur eine Hilfe - schlägt sie fehl, kann trotzdem
-      // ganz normal von Hand weiter erfasst werden.
+      if (fehlerObjekt instanceof ErkennungsFehler) {
+        setErkennungsHinweis(fehlerObjekt.message)
+      } else {
+        setErkennungsHinweis('Die KI-Erkennung ist fehlgeschlagen. Die Daten können manuell eingegeben werden.')
+      }
     } finally {
-      setTexterkennungLaeuft(false)
+      setErkennungLaeuft(false)
     }
   }
 
@@ -59,8 +71,8 @@ function FilmFormular({ onHinzufuegen }: Props) {
     const formElement = ereignis.currentTarget
     setFehler(null)
 
-    if (!foto) {
-      setFehler('Bitte zuerst ein Foto der Rückseite auswählen.')
+    if (!fotoVorderseite) {
+      setFehler('Bitte zuerst ein Foto der Vorderseite auswählen.')
       return
     }
     if (!titel.trim()) {
@@ -73,17 +85,26 @@ function FilmFormular({ onHinzufuegen }: Props) {
       await onHinzufuegen({
         titel,
         format,
-        foto,
+        fotoVorderseite,
+        fotoRueckseite,
         fsk: fsk.trim() || undefined,
         laufzeitMinuten: laufzeit.trim() ? Number(laufzeit) : undefined,
         barcode: barcode.trim() || undefined,
+        regisseur: regisseur.trim() || undefined,
+        darsteller: darsteller.trim() || undefined,
+        handlung: handlung.trim() || undefined,
       })
       setTitel('')
       setFormat('DVD')
-      setFoto(null)
+      setFotoVorderseite(null)
+      setFotoRueckseite(null)
       setFsk('')
       setLaufzeit('')
       setBarcode('')
+      setRegisseur('')
+      setDarsteller('')
+      setHandlung('')
+      setErkennungsHinweis(null)
       formElement.reset()
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)
@@ -98,16 +119,30 @@ function FilmFormular({ onHinzufuegen }: Props) {
       <h2>Film hinzufügen</h2>
 
       <label>
-        Foto der Rückseite
+        Foto Vorderseite (wird als Vorschaubild verwendet)
         <input
           type="file"
           accept="image/*"
           capture="environment"
-          onChange={(ereignis) => fotoAusgewaehlt(ereignis.target.files?.[0] ?? null)}
+          onChange={(ereignis) => setFotoVorderseite(ereignis.target.files?.[0] ?? null)}
         />
       </label>
 
-      {texterkennungLaeuft && <p className="hint">Text wird erkannt …</p>}
+      <label>
+        Foto Rückseite (optional, verbessert die KI-Erkennung deutlich)
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(ereignis) => setFotoRueckseite(ereignis.target.files?.[0] ?? null)}
+        />
+      </label>
+
+      <button type="button" onClick={erkennungStarten} disabled={!fotoVorderseite || erkennungLaeuft}>
+        {erkennungLaeuft ? 'Wird erkannt …' : 'Mit KI erkennen'}
+      </button>
+
+      {erkennungsHinweis && <p className="hint">{erkennungsHinweis}</p>}
 
       <label>
         Titel
@@ -131,13 +166,18 @@ function FilmFormular({ onHinzufuegen }: Props) {
       </label>
 
       <label>
+        Regisseur
+        <input type="text" value={regisseur} onChange={(ereignis) => setRegisseur(ereignis.target.value)} />
+      </label>
+
+      <label>
+        Darsteller
+        <input type="text" value={darsteller} onChange={(ereignis) => setDarsteller(ereignis.target.value)} />
+      </label>
+
+      <label>
         FSK
-        <input
-          type="text"
-          value={fsk}
-          onChange={(ereignis) => setFsk(ereignis.target.value)}
-          placeholder="z. B. 12"
-        />
+        <input type="text" value={fsk} onChange={(ereignis) => setFsk(ereignis.target.value)} placeholder="z. B. 12" />
       </label>
 
       <label>
@@ -160,9 +200,14 @@ function FilmFormular({ onHinzufuegen }: Props) {
         />
       </label>
 
+      <label>
+        Handlung
+        <textarea value={handlung} onChange={(ereignis) => setHandlung(ereignis.target.value)} rows={3} />
+      </label>
+
       {fehler && <p className="fehler">{fehler}</p>}
 
-      <button type="submit" disabled={wirdGespeichert || texterkennungLaeuft}>
+      <button type="submit" disabled={wirdGespeichert || erkennungLaeuft}>
         {wirdGespeichert ? 'Wird gespeichert …' : 'Film speichern'}
       </button>
     </form>
