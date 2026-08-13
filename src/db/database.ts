@@ -35,7 +35,12 @@ async function speichereDatenbankBytes(bytes: Uint8Array): Promise<void> {
   const wurzel = await opfsWurzel()
   const dateiHandle = await wurzel.getFileHandle(DB_DATEINAME, { create: true })
   const schreibStrom = await dateiHandle.createWritable()
-  await schreibStrom.write(bytes)
+  // Type-Cast nötig: TypeScripts DOM-Typen erwarten hier ein Uint8Array,
+  // dessen Speicherbereich exakt als "ArrayBuffer" typisiert ist, sql.js
+  // liefert aber den allgemeineren Typ "ArrayBufferLike" zurück. Zur
+  // Laufzeit sind beide identisch (ganz normale Bytes), es geht hier
+  // ausschließlich um eine Falschmeldung der TypeScript-Prüfung.
+  await schreibStrom.write(bytes as unknown as BufferSource)
   await schreibStrom.close()
 }
 
