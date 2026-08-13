@@ -20,6 +20,7 @@ const GEMINI_MODELL = 'gemini-3.5-flash'
 
 export interface KiErkennungsErgebnis {
   titel?: string
+  format?: string
   regisseur?: string
   darsteller?: string
   laufzeitMinuten?: number
@@ -28,7 +29,12 @@ export interface KiErkennungsErgebnis {
   handlung?: string
 }
 
-export type ErkennungsFehlerCode = 'kein_api_key' | 'offline' | 'kontingent_aufgebraucht' | 'unbekannt'
+export type ErkennungsFehlerCode =
+  | 'kein_api_key'
+  | 'offline'
+  | 'kontingent_aufgebraucht'
+  | 'modell_nicht_gefunden'
+  | 'unbekannt'
 
 export class ErkennungsFehler extends Error {
   code: ErkennungsFehlerCode
@@ -42,6 +48,7 @@ export class ErkennungsFehler extends Error {
 const PROMPT = `Du bekommst ein oder zwei Fotos einer Film-Hülle (Vorderseite und/oder Rückseite einer DVD/Blu-ray-Hülle). Lies beide Fotos gründlich und vollständig, auch kleiner gedruckten Text (Besetzungsliste, technische Angaben, Klappentext). Ermittle daraus folgende Angaben zum Film und antworte ausschließlich als JSON-Objekt mit genau diesen Feldern. Versuche aktiv, jedes Feld auszufüllen, wenn die Information irgendwo auf einem der Fotos zu finden ist - nutze nicht vorschnell einen leeren Wert.
 
 - titel: Der deutsche Filmtitel. Steht auf der Hülle meist nur der englische Originaltitel, ergänze in dem Fall den in Deutschland gebräuchlichen deutschen Verleihtitel anhand deines Filmwissens. Steht bereits ein deutscher Titel groß auf dem Cover, nimm genau diesen.
+- format: Das Medienformat, erkennbar an Logo und/oder Aufdruck auf der Hülle (z. B. "DVD"-Logo, "Blu-ray Disc"-Logo, "4K Ultra HD"/"4K UHD"-Logo). Antworte mit genau einem der folgenden Werte: "DVD", "Blu-ray", "4K UHD" oder "Sonstiges".
 - regisseur: Name des Regisseurs/der Regisseurin, steht meist im Kleingedruckten der Rückseite (z. B. bei "Regie" oder "Buch, Produktion und Regie").
 - darsteller: Die wichtigsten Hauptdarsteller aus der Besetzungsliste, durch Komma getrennt.
 - laufzeitMinuten: Laufzeit in Minuten als Zahl, steht meist bei "Laufzeit: ca. X Min.". Falls nicht angegeben, 0 zurückgeben.
@@ -55,6 +62,7 @@ const ANTWORT_SCHEMA = {
   type: 'OBJECT',
   properties: {
     titel: { type: 'STRING' },
+    format: { type: 'STRING', enum: ['DVD', 'Blu-ray', '4K UHD', 'Sonstiges'] },
     regisseur: { type: 'STRING' },
     darsteller: { type: 'STRING' },
     laufzeitMinuten: { type: 'INTEGER' },
@@ -67,7 +75,7 @@ const ANTWORT_SCHEMA = {
   // einfach ganz aus der Antwort wegzulassen. Das hat sich im ersten
   // Praxistest als wahrscheinlichste Ursache dafür gezeigt, dass nur der
   // Titel erkannt wurde.
-  required: ['titel', 'regisseur', 'darsteller', 'laufzeitMinuten', 'fsk', 'barcode', 'handlung'],
+  required: ['titel', 'format', 'regisseur', 'darsteller', 'laufzeitMinuten', 'fsk', 'barcode', 'handlung'],
 }
 
 async function dateiZuBase64(datei: File): Promise<string> {
@@ -142,6 +150,18 @@ export async function erkenneFilmdaten(
     throw new ErkennungsFehler(
       'kontingent_aufgebraucht',
       'Das kostenlose Tages-Kontingent für die KI-Erkennung ist aufgebraucht. Bitte später erneut versuchen (Kontingent wird täglich zurückgesetzt) oder die Daten manuell eingeben.',
+    )
+  }
+
+  if (antwort.status === 404) {
+    // Google hat das verwendete Modell abgekündigt/abgeschaltet, oder der
+    // Modellname im Code ist aus einem anderen Grund ungültig. Google
+    // kündigt Modell-Abschaltungen vorher an, daher ist das kein
+    // plötzliches Ereignis - der Modellname in bilderkennung.ts muss dann
+    // aber auf ein aktuelles Modell aktualisiert werden.
+    throw new ErkennungsFehler(
+      'modell_nicht_gefunden',
+      'Das verwendete KI-Modell ist nicht mehr verfügbar (vermutlich von Google eingestellt). Die App muss dafür aktualisiert werden - bitte Bescheid geben. Die Daten können bis dahin manuell eingegeben werden.',
     )
   }
 

@@ -48,6 +48,9 @@ function FilmFormular({ onHinzufuegen }: Props) {
       const ergebnis = await erkenneFilmdaten(fotoVorderseite, fotoRueckseite)
 
       if (ergebnis.titel && !titel.trim()) setTitel(ergebnis.titel)
+      if (ergebnis.format && FORMATE.includes(ergebnis.format as Format)) {
+        setFormat(ergebnis.format as Format)
+      }
       if (ergebnis.fsk) setFsk(ergebnis.fsk)
       if (ergebnis.laufzeitMinuten) setLaufzeit(String(ergebnis.laufzeitMinuten))
       if (ergebnis.barcode) setBarcode(ergebnis.barcode)
