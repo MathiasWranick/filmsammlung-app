@@ -8,6 +8,7 @@ export interface Film {
   id: string
   titel: string
   format: Format
+  fassung?: string
   fotoDateiname: string
   fotoRueckseiteDateiname?: string
   erfasstAm: string
@@ -45,6 +46,7 @@ interface FilmAnlegenEingabe {
   id: string
   titel: string
   format: Format
+  fassung?: string
   fotoDateiname: string
   fotoRueckseiteDateiname?: string
   fsk?: string
@@ -69,6 +71,7 @@ export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
     id: eingabe.id,
     titel: eingabe.titel.trim(),
     format: eingabe.format,
+    fassung: eingabe.fassung,
     fotoDateiname: eingabe.fotoDateiname,
     fotoRueckseiteDateiname: eingabe.fotoRueckseiteDateiname,
     erfasstAm: jetzt,
@@ -88,15 +91,16 @@ export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
 
   db.run(
     `INSERT INTO filme (
-       id, titel, format, foto_dateiname, foto_rueckseite_dateiname, erfasst_am, zuletzt_geaendert,
+       id, titel, format, fassung, foto_dateiname, foto_rueckseite_dateiname, erfasst_am, zuletzt_geaendert,
        fsk, laufzeit_minuten, barcode, regisseur, darsteller, handlung,
        originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung
      )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       film.id,
       film.titel,
       film.format,
+      film.fassung ?? null,
       film.fotoDateiname,
       film.fotoRueckseiteDateiname ?? null,
       film.erfasstAm,
@@ -123,7 +127,7 @@ export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
 export async function filmeLaden(): Promise<Film[]> {
   const db = await oeffneDatenbank()
   const ergebnis = db.exec(`
-    SELECT id, titel, format, foto_dateiname, foto_rueckseite_dateiname, erfasst_am,
+    SELECT id, titel, format, fassung, foto_dateiname, foto_rueckseite_dateiname, erfasst_am,
            fsk, laufzeit_minuten, barcode, regisseur, darsteller, handlung,
            originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung,
            ausgeliehen_an, ausgeliehen_am
@@ -138,23 +142,24 @@ export async function filmeLaden(): Promise<Film[]> {
     id: String(zeile[0]),
     titel: String(zeile[1]),
     format: zeile[2] as Format,
-    fotoDateiname: String(zeile[3]),
-    fotoRueckseiteDateiname: zeile[4] !== null ? String(zeile[4]) : undefined,
-    erfasstAm: String(zeile[5]),
-    fsk: zeile[6] !== null ? String(zeile[6]) : undefined,
-    laufzeitMinuten: zeile[7] !== null ? Number(zeile[7]) : undefined,
-    barcode: zeile[8] !== null ? String(zeile[8]) : undefined,
-    regisseur: zeile[9] !== null ? String(zeile[9]) : undefined,
-    darsteller: zeile[10] !== null ? String(zeile[10]) : undefined,
-    handlung: zeile[11] !== null ? String(zeile[11]) : undefined,
-    originaltitel: zeile[12] !== null ? String(zeile[12]) : undefined,
-    jahr: zeile[13] !== null ? Number(zeile[13]) : undefined,
-    genre: zeile[14] !== null ? String(zeile[14]) : undefined,
-    produktionsland: zeile[15] !== null ? String(zeile[15]) : undefined,
-    sprache: zeile[16] !== null ? String(zeile[16]) : undefined,
-    imdbBewertung: zeile[17] !== null ? String(zeile[17]) : undefined,
-    ausgeliehenAn: zeile[18] !== null ? String(zeile[18]) : undefined,
-    ausgeliehenAm: zeile[19] !== null ? String(zeile[19]) : undefined,
+    fassung: zeile[3] !== null ? String(zeile[3]) : undefined,
+    fotoDateiname: String(zeile[4]),
+    fotoRueckseiteDateiname: zeile[5] !== null ? String(zeile[5]) : undefined,
+    erfasstAm: String(zeile[6]),
+    fsk: zeile[7] !== null ? String(zeile[7]) : undefined,
+    laufzeitMinuten: zeile[8] !== null ? Number(zeile[8]) : undefined,
+    barcode: zeile[9] !== null ? String(zeile[9]) : undefined,
+    regisseur: zeile[10] !== null ? String(zeile[10]) : undefined,
+    darsteller: zeile[11] !== null ? String(zeile[11]) : undefined,
+    handlung: zeile[12] !== null ? String(zeile[12]) : undefined,
+    originaltitel: zeile[13] !== null ? String(zeile[13]) : undefined,
+    jahr: zeile[14] !== null ? Number(zeile[14]) : undefined,
+    genre: zeile[15] !== null ? String(zeile[15]) : undefined,
+    produktionsland: zeile[16] !== null ? String(zeile[16]) : undefined,
+    sprache: zeile[17] !== null ? String(zeile[17]) : undefined,
+    imdbBewertung: zeile[18] !== null ? String(zeile[18]) : undefined,
+    ausgeliehenAn: zeile[19] !== null ? String(zeile[19]) : undefined,
+    ausgeliehenAm: zeile[20] !== null ? String(zeile[20]) : undefined,
   }))
 }
 
@@ -162,6 +167,7 @@ export interface FilmAktualisierenEingabe {
   id: string
   titel: string
   format: Format
+  fassung?: string
   fsk?: string
   laufzeitMinuten?: number
   barcode?: string
@@ -189,13 +195,14 @@ export async function filmAktualisieren(eingabe: FilmAktualisierenEingabe): Prom
 
   db.run(
     `UPDATE filme SET
-       titel = ?, format = ?, fsk = ?, laufzeit_minuten = ?, barcode = ?,
+       titel = ?, format = ?, fassung = ?, fsk = ?, laufzeit_minuten = ?, barcode = ?,
        regisseur = ?, darsteller = ?, handlung = ?, originaltitel = ?, jahr = ?,
        genre = ?, produktionsland = ?, sprache = ?, imdb_bewertung = ?, zuletzt_geaendert = ?
      WHERE id = ?`,
     [
       eingabe.titel.trim(),
       eingabe.format,
+      eingabe.fassung ?? null,
       eingabe.fsk ?? null,
       eingabe.laufzeitMinuten ?? null,
       eingabe.barcode ?? null,

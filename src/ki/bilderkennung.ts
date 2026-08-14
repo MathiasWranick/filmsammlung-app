@@ -21,6 +21,7 @@ const GEMINI_MODELL = 'gemini-3.5-flash'
 export interface KiErkennungsErgebnis {
   titel?: string
   format?: string
+  fassung?: string
   regisseur?: string
   darsteller?: string
   laufzeitMinuten?: number
@@ -50,6 +51,7 @@ const PROMPT = `Du bekommst ein oder zwei Fotos einer Film-Hülle (Vorderseite u
 
 - titel: Der deutsche Filmtitel. Steht auf der Hülle meist nur der englische Originaltitel, ergänze in dem Fall den in Deutschland gebräuchlichen deutschen Verleihtitel anhand deines Filmwissens. Steht bereits ein deutscher Titel groß auf dem Cover, nimm genau diesen.
 - format: Das Medienformat, erkennbar an Logo und/oder Aufdruck auf der Hülle (z. B. "DVD"-Logo, "Blu-ray Disc"-Logo, "4K Ultra HD"/"4K UHD"-Logo). Antworte mit genau einem der folgenden Werte: "DVD", "Blu-ray", "4K UHD" oder "Sonstiges".
+- fassung: Falls auf der Hülle eine besondere Fassung/Edition vermerkt ist (z. B. "Director's Cut", "Extended Version", "Final Cut", "Kinofassung", "Steelbook", "Mediabook", "Uncut"), gib genau diesen Aufdruck wieder. Steht nichts dergleichen auf der Hülle, handelt es sich um eine gewöhnliche Standard-Fassung ohne besonderen Aufdruck - dann leeren String zurückgeben, nicht "Kinofassung" oder Ähnliches erfinden.
 - regisseur: Name des Regisseurs/der Regisseurin, steht meist im Kleingedruckten der Rückseite (z. B. bei "Regie" oder "Buch, Produktion und Regie").
 - darsteller: Die wichtigsten Hauptdarsteller aus der Besetzungsliste, durch Komma getrennt.
 - laufzeitMinuten: Laufzeit in Minuten als Zahl, steht meist bei "Laufzeit: ca. X Min.". Falls nicht angegeben, 0 zurückgeben.
@@ -64,6 +66,7 @@ const ANTWORT_SCHEMA = {
   properties: {
     titel: { type: 'STRING' },
     format: { type: 'STRING', enum: ['DVD', 'Blu-ray', '4K UHD', 'Sonstiges'] },
+    fassung: { type: 'STRING' },
     regisseur: { type: 'STRING' },
     darsteller: { type: 'STRING' },
     laufzeitMinuten: { type: 'INTEGER' },
@@ -76,7 +79,7 @@ const ANTWORT_SCHEMA = {
   // einfach ganz aus der Antwort wegzulassen. Das hat sich im ersten
   // Praxistest als wahrscheinlichste Ursache dafür gezeigt, dass nur der
   // Titel erkannt wurde.
-  required: ['titel', 'format', 'regisseur', 'darsteller', 'laufzeitMinuten', 'fsk', 'barcode', 'handlung'],
+  required: ['titel', 'format', 'fassung', 'regisseur', 'darsteller', 'laufzeitMinuten', 'fsk', 'barcode', 'handlung'],
 }
 
 async function dateiZuBase64(datei: File): Promise<string> {

@@ -47,6 +47,7 @@ function App() {
   async function filmHinzufuegen(eingabe: {
     titel: string
     format: Format
+    fassung?: string
     fotoVorderseite: File
     fotoRueckseite: File
     fsk?: string
@@ -69,6 +70,7 @@ function App() {
       id,
       titel: eingabe.titel,
       format: eingabe.format,
+      fassung: eingabe.fassung,
       fotoDateiname,
       fotoRueckseiteDateiname,
       fsk: eingabe.fsk,
@@ -91,6 +93,7 @@ function App() {
     id: string
     titel: string
     format: Format
+    fassung?: string
     fsk?: string
     laufzeitMinuten?: number
     barcode?: string

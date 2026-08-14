@@ -6,6 +6,7 @@ import { sucheEindeutig, sucheKandidaten, ladeDetails, type OmdbErgebnis, type O
 interface FilmFelder {
   titel: string
   format: Format
+  fassung?: string
   fsk?: string
   laufzeitMinuten?: number
   barcode?: string
@@ -43,6 +44,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
 
   const [titel, setTitel] = useState('')
   const [format, setFormat] = useState<Format>('DVD')
+  const [fassung, setFassung] = useState('')
   const [fotoVorderseite, setFotoVorderseite] = useState<File | null>(null)
   const [fotoRueckseite, setFotoRueckseite] = useState<File | null>(null)
   const [fsk, setFsk] = useState('')
@@ -72,6 +74,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
   useEffect(() => {
     setTitel(bearbeitenFilm?.titel ?? '')
     setFormat(bearbeitenFilm?.format ?? 'DVD')
+    setFassung(bearbeitenFilm?.fassung ?? '')
     setFotoVorderseite(null)
     setFotoRueckseite(null)
     setFsk(bearbeitenFilm?.fsk ?? '')
@@ -107,6 +110,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
       if (ergebnis.format && FORMATE.includes(ergebnis.format as Format)) {
         setFormat(ergebnis.format as Format)
       }
+      if (ergebnis.fassung && !fassung.trim()) setFassung(ergebnis.fassung)
       if (ergebnis.fsk) setFsk(ergebnis.fsk)
       if (ergebnis.laufzeitMinuten) setLaufzeit(String(ergebnis.laufzeitMinuten))
       if (ergebnis.barcode) setBarcode(ergebnis.barcode)
@@ -219,6 +223,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
     const felder: FilmFelder = {
       titel,
       format,
+      fassung: fassung.trim() || undefined,
       fsk: fsk.trim() || undefined,
       laufzeitMinuten: laufzeit.trim() ? Number(laufzeit) : undefined,
       barcode: barcode.trim() || undefined,
@@ -245,6 +250,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
         formElement.reset()
         setTitel('')
         setFormat('DVD')
+        setFassung('')
         setFotoVorderseite(null)
         setFotoRueckseite(null)
         setFsk('')
@@ -328,6 +334,16 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
             </option>
           ))}
         </select>
+      </label>
+
+      <label>
+        Fassung/Edition
+        <input
+          type="text"
+          value={fassung}
+          onChange={(ereignis) => setFassung(ereignis.target.value)}
+          placeholder="z. B. Director's Cut, Steelbook (nur falls auf der Hülle vermerkt)"
+        />
       </label>
 
       <button type="button" onClick={omdbStarten} disabled={!titel.trim() || omdbLaeuft}>

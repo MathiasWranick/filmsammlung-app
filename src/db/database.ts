@@ -9,7 +9,7 @@ const DB_DATEINAME = 'filmsammlung.sqlite3'
 
 // Einfache Schema-Versionierung: Jede neue Version fügt bei Bedarf
 // weitere Spalten/Tabellen hinzu, ohne bestehende Daten zu verlieren.
-const AKTUELLE_SCHEMA_VERSION = 5
+const AKTUELLE_SCHEMA_VERSION = 6
 
 let dbInstanz: Database | null = null
 let dbWirdGeoeffnet: Promise<Database> | null = null
@@ -107,6 +107,16 @@ function fuehreMigrationenAus(db: Database): void {
     // vorgesehen, jetzt über die Filmkarte direkt nutzbar).
     db.run('ALTER TABLE filme ADD COLUMN ausgeliehen_an TEXT')
     db.run('ALTER TABLE filme ADD COLUMN ausgeliehen_am TEXT')
+  }
+
+  if (vorhandeneVersion < 6) {
+    // Fassung/Edition (z. B. "Director's Cut", "Steelbook", "Mediabook") -
+    // war von Anfang an im Datenmodell vorgesehen, aber übersehen worden.
+    // Bewusst reines Freitextfeld: Die Bezeichnungen bei Sonderfassungen
+    // sind zu vielfältig für eine feste Auswahlliste. Wird best-effort von
+    // der KI-Bilderkennung vorgeschlagen (falls auf der Hülle vermerkt),
+    // bleibt aber wie alle anderen Felder frei editierbar.
+    db.run('ALTER TABLE filme ADD COLUMN fassung TEXT')
   }
 
   if (vorhandeneVersion === 0) {

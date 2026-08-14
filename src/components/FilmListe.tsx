@@ -60,6 +60,7 @@ function FilmKarte({ film, onBearbeiten, onLoeschen, onVerleihStatusAendern }: F
         <strong>{film.titel}</strong>
         <div className="hint">
           {film.format}
+          {film.fassung && ` (${film.fassung})`}
           {film.jahr && ` · ${film.jahr}`}
           {film.fsk && ` · FSK ${film.fsk}`}
           {film.laufzeitMinuten && ` · ${film.laufzeitMinuten} Min.`}
