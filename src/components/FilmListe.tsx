@@ -25,8 +25,10 @@ function FilmKarte({ film }: { film: Film }) {
         <strong>{film.titel}</strong>
         <div className="hint">
           {film.format}
+          {film.jahr && ` · ${film.jahr}`}
           {film.fsk && ` · FSK ${film.fsk}`}
           {film.laufzeitMinuten && ` · ${film.laufzeitMinuten} Min.`}
+          {film.genre && ` · ${film.genre}`}
           {film.regisseur && ` · Regie: ${film.regisseur}`}
         </div>
       </div>

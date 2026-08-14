@@ -9,7 +9,7 @@ const DB_DATEINAME = 'filmsammlung.sqlite3'
 
 // Einfache Schema-Versionierung: Jede neue Version fügt bei Bedarf
 // weitere Spalten/Tabellen hinzu, ohne bestehende Daten zu verlieren.
-const AKTUELLE_SCHEMA_VERSION = 3
+const AKTUELLE_SCHEMA_VERSION = 4
 
 let dbInstanz: Database | null = null
 let dbWirdGeoeffnet: Promise<Database> | null = null
@@ -89,6 +89,17 @@ function fuehreMigrationenAus(db: Database): void {
     db.run('ALTER TABLE filme ADD COLUMN regisseur TEXT')
     db.run('ALTER TABLE filme ADD COLUMN darsteller TEXT')
     db.run('ALTER TABLE filme ADD COLUMN handlung TEXT')
+  }
+
+  if (vorhandeneVersion < 4) {
+    // Felder, die ab Stufe 0.3 über OMDb ergänzt werden können (füllt nur
+    // Lücken, die Foto/KI-Bilderkennung und manuelle Eingabe offen lassen).
+    db.run('ALTER TABLE filme ADD COLUMN originaltitel TEXT')
+    db.run('ALTER TABLE filme ADD COLUMN jahr INTEGER')
+    db.run('ALTER TABLE filme ADD COLUMN genre TEXT')
+    db.run('ALTER TABLE filme ADD COLUMN produktionsland TEXT')
+    db.run('ALTER TABLE filme ADD COLUMN sprache TEXT')
+    db.run('ALTER TABLE filme ADD COLUMN imdb_bewertung TEXT')
   }
 
   if (vorhandeneVersion === 0) {

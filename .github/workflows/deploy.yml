@@ -34,6 +34,11 @@ jobs:
           # Repository-Secret "GEMINI_API_KEY" hinterlegt sein
           # (Settings -> Secrets and variables -> Actions).
           VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Wird zur Build-Zeit in die App eingebettet, damit die
+          # OMDb-Ergänzung (Stufe 0.3) im Browser funktioniert. Muss als
+          # Repository-Secret "OMDB_API_KEY" hinterlegt sein
+          # (Settings -> Secrets and variables -> Actions).
+          VITE_OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

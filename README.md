@@ -29,3 +29,18 @@ API-Schlüssel (erstellt in Google AI Studio) hinterlegt sein. Ohne dieses
 Secret startet die App weiterhin normal, die KI-Erkennung zeigt dann aber
 eine entsprechende Fehlermeldung und die Filmdaten müssen manuell
 eingegeben werden.
+
+## OMDb-Ergänzung
+
+Für die Ergänzung von Metadaten (Originaltitel, Jahr, Genre,
+Produktionsland, Sprache, IMDb-Bewertung sowie ggf. Regisseur, Darsteller,
+Handlung, Laufzeit als Rückfallebene) wird die kostenlose OMDb-API
+verwendet. Damit das im veröffentlichten Build funktioniert, muss im
+Repository unter Settings -> Secrets and variables -> Actions ein Secret
+namens `OMDB_API_KEY` mit dem eigenen, kostenlosen API-Schlüssel
+(erstellt unter https://www.omdbapi.com/apikey.aspx, FREE-Stufe, nur
+E-Mail-Adresse nötig) hinterlegt sein. Ohne dieses Secret startet die App
+weiterhin normal, die OMDb-Ergänzung zeigt dann aber eine entsprechende
+Fehlermeldung und die Filmdaten müssen manuell eingegeben werden. OMDb
+überschreibt nie bereits vorhandene Angaben (aus Foto/KI-Erkennung oder
+manueller Eingabe) - sie füllt ausschließlich noch leere Felder.

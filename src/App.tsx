@@ -35,6 +35,12 @@ function App() {
     regisseur?: string
     darsteller?: string
     handlung?: string
+    originaltitel?: string
+    jahr?: number
+    genre?: string
+    produktionsland?: string
+    sprache?: string
+    imdbBewertung?: string
   }) {
     const id = crypto.randomUUID()
     const fotoDateiname = await fotoSpeichern(id, 'vorderseite', eingabe.fotoVorderseite)
@@ -51,6 +57,12 @@ function App() {
       regisseur: eingabe.regisseur,
       darsteller: eingabe.darsteller,
       handlung: eingabe.handlung,
+      originaltitel: eingabe.originaltitel,
+      jahr: eingabe.jahr,
+      genre: eingabe.genre,
+      produktionsland: eingabe.produktionsland,
+      sprache: eingabe.sprache,
+      imdbBewertung: eingabe.imdbBewertung,
     })
     setFilme((vorherigeFilme) => [neuerFilm, ...vorherigeFilme])
   }
