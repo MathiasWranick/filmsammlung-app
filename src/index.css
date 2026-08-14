@@ -17,6 +17,14 @@ body {
   color: #6b7280;
 }
 
+.konto-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .fehler {
   color: #b91c1c;
 }

@@ -12,6 +12,7 @@ import {
 import { fotoSpeichern, fotoLoeschen } from './db/fotos'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
+import KontoLeiste from './components/KontoLeiste'
 
 type LadeStatus = 'laedt' | 'bereit' | 'fehler'
 
@@ -184,6 +185,8 @@ function App() {
   return (
     <div className="page">
       <h1>Filmsammlung</h1>
+
+      <KontoLeiste />
 
       {ladeStatus === 'laedt' && <p className="hint">Datenbank wird geladen …</p>}
       {ladeStatus === 'fehler' && <p className="fehler">{fehlerText}</p>}
