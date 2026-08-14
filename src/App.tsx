@@ -32,8 +32,13 @@ function App() {
   const [bearbeitenFilm, setBearbeitenFilm] = useState<Film | null>(null)
   const [filter, setFilter] = useState<Filterzustand>(FILTER_STANDARD)
 
-  useEffect(() => {
-    filmeLaden()
+  // In eine eigene, wiederverwendbare Funktion ausgelagert (statt direkt im
+  // useEffect), damit sie auch nach einem abgeschlossenen OneDrive-Sync
+  // erneut aufgerufen werden kann (siehe onSyncAbgeschlossen weiter unten) -
+  // ohne den Umweg über einen Ladebildschirm, der beim allerersten Laden
+  // beim App-Start dagegen weiterhin sinnvoll ist.
+  function filmeNeuLaden() {
+    return filmeLaden()
       .then((geladeneFilme) => {
         setFilme(geladeneFilme)
         setLadeStatus('bereit')
@@ -43,6 +48,10 @@ function App() {
         setFehlerText('Die Datenbank konnte nicht geladen werden.')
         setLadeStatus('fehler')
       })
+  }
+
+  useEffect(() => {
+    filmeNeuLaden()
   }, [])
 
   async function filmHinzufuegen(eingabe: {
@@ -186,7 +195,7 @@ function App() {
     <div className="page">
       <h1>Filmsammlung</h1>
 
-      <KontoLeiste />
+      <KontoLeiste onSyncAbgeschlossen={filmeNeuLaden} />
 
       {ladeStatus === 'laedt' && <p className="hint">Datenbank wird geladen …</p>}
       {ladeStatus === 'fehler' && <p className="fehler">{fehlerText}</p>}

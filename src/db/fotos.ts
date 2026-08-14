@@ -53,3 +53,39 @@ export async function fotoLoeschen(dateiname: string): Promise<void> {
     // Datei existierte nicht (mehr) - nichts zu tun.
   }
 }
+
+// Lädt ein gespeichertes Foto als rohe Datei (nicht als anzeigbare Adresse
+// wie fotoLaden) - wird beim OneDrive-Sync gebraucht, um die Bilddaten
+// unverändert zu Microsoft Graph hochzuladen.
+export async function fotoAlsDateiLaden(dateiname: string): Promise<File> {
+  const ordner = await fotosOrdner()
+  const dateiHandle = await ordner.getFileHandle(dateiname)
+  return dateiHandle.getFile()
+}
+
+// Prüft nur, ob ein Foto lokal vorhanden ist, ohne es zu laden - genügt
+// beim Sync, um zu entscheiden, ob ein von einem anderen Gerät bekanntes
+// Foto überhaupt erst heruntergeladen werden muss (siehe fotoExistiertLokal
+// in graph.ts für die entsprechende Prüfung auf der OneDrive-Seite).
+export async function fotoExistiertLokal(dateiname: string): Promise<boolean> {
+  try {
+    const ordner = await fotosOrdner()
+    await ordner.getFileHandle(dateiname)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Speichert vom OneDrive-Sync heruntergeladene Bilddaten unverändert unter
+// dem übergebenen (vom anderen Gerät stammenden) Dateinamen - im
+// Unterschied zu fotoSpeichern() wird hier bewusst KEIN neuer Dateiname mit
+// eigenem Zeitstempel erzeugt, weil der Dateiname ja schon eindeutig ist
+// und unverändert in der Datenbank verlinkt werden muss.
+export async function fotoRohSpeichern(dateiname: string, daten: Blob): Promise<void> {
+  const ordner = await fotosOrdner()
+  const dateiHandle = await ordner.getFileHandle(dateiname, { create: true })
+  const schreibStrom = await dateiHandle.createWritable()
+  await schreibStrom.write(daten)
+  await schreibStrom.close()
+}
