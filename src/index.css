@@ -77,6 +77,14 @@ body {
   flex-shrink: 0;
 }
 
+.formular-fotovorschau {
+  width: 4rem;
+  height: 4rem;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  align-self: flex-start;
+}
+
 .formular-aktionen {
   display: flex;
   gap: 0.5rem;

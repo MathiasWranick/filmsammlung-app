@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { FORMATE, type Film, type Format } from '../db/filme'
 import { erkenneFilmdaten, ErkennungsFehler } from '../ki/bilderkennung'
 import { sucheEindeutig, sucheKandidaten, ladeDetails, type OmdbErgebnis, type OmdbKandidat, type OmdbFehler } from '../omdb/omdb'
+import { fotoLaden } from '../db/fotos'
 
 interface FilmFelder {
   titel: string
@@ -23,12 +24,16 @@ interface FilmFelder {
 
 interface Props {
   // Ist hier ein Film gesetzt, arbeitet das Formular im Bearbeitungsmodus:
-  // Felder werden vorausgefüllt, die Foto-Erfassung entfällt (Fotos bleiben
-  // wie ursprünglich erfasst), und der Speichern-Button ruft onAktualisieren
-  // statt onHinzufuegen auf.
+  // Felder werden vorausgefüllt, die Foto-Aufnahme über "Mit KI erkennen"
+  // entfällt (dafür bräuchte es zwingend beide Fotos neu), einzelne Fotos
+  // lassen sich aber optional ersetzen (z. B. durch ein Cover aus einer
+  // externen Quelle) - der Speichern-Button ruft onAktualisieren statt
+  // onHinzufuegen auf.
   bearbeitenFilm?: Film | null
   onHinzufuegen: (eingabe: FilmFelder & { fotoVorderseite: File; fotoRueckseite: File }) => Promise<void>
-  onAktualisieren?: (eingabe: FilmFelder & { id: string }) => Promise<void>
+  onAktualisieren?: (
+    eingabe: FilmFelder & { id: string; neueFotoVorderseite?: File; neueFotoRueckseite?: File },
+  ) => Promise<void>
   onAbbrechen?: () => void
 }
 
@@ -59,6 +64,9 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
   const [produktionsland, setProduktionsland] = useState('')
   const [sprache, setSprache] = useState('')
   const [imdbBewertung, setImdbBewertung] = useState('')
+
+  const [aktuelleFotoVorderseiteUrl, setAktuelleFotoVorderseiteUrl] = useState<string | null>(null)
+  const [aktuelleFotoRueckseiteUrl, setAktuelleFotoRueckseiteUrl] = useState<string | null>(null)
 
   const [erkennungLaeuft, setErkennungLaeuft] = useState(false)
   const [erkennungsHinweis, setErkennungsHinweis] = useState<string | null>(null)
@@ -93,6 +101,36 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
     setOmdbHinweis(null)
     setOmdbKandidaten(null)
     setFehler(null)
+  }, [bearbeitenFilm])
+
+  // Lädt im Bearbeitungsmodus eine Vorschau der bereits gespeicherten
+  // Fotos, damit erkennbar ist, was man gerade ersetzt.
+  useEffect(() => {
+    let vorderseiteUrl: string | null = null
+    let rueckseiteUrl: string | null = null
+
+    if (bearbeitenFilm?.fotoDateiname) {
+      fotoLaden(bearbeitenFilm.fotoDateiname).then((url) => {
+        vorderseiteUrl = url
+        setAktuelleFotoVorderseiteUrl(url)
+      })
+    } else {
+      setAktuelleFotoVorderseiteUrl(null)
+    }
+
+    if (bearbeitenFilm?.fotoRueckseiteDateiname) {
+      fotoLaden(bearbeitenFilm.fotoRueckseiteDateiname).then((url) => {
+        rueckseiteUrl = url
+        setAktuelleFotoRueckseiteUrl(url)
+      })
+    } else {
+      setAktuelleFotoRueckseiteUrl(null)
+    }
+
+    return () => {
+      if (vorderseiteUrl) URL.revokeObjectURL(vorderseiteUrl)
+      if (rueckseiteUrl) URL.revokeObjectURL(rueckseiteUrl)
+    }
   }, [bearbeitenFilm])
 
   // Die KI-Erkennung kostet (wenn auch nur minimal) Kontingent, deshalb
@@ -241,10 +279,16 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
     setWirdGespeichert(true)
     try {
       if (bearbeitungsModus && bearbeitenFilm && onAktualisieren) {
-        await onAktualisieren({ ...felder, id: bearbeitenFilm.id })
+        await onAktualisieren({
+          ...felder,
+          id: bearbeitenFilm.id,
+          neueFotoVorderseite: fotoVorderseite ?? undefined,
+          neueFotoRueckseite: fotoRueckseite ?? undefined,
+        })
         // Formular bleibt danach im Bearbeitungsmodus - App.tsx beendet ihn
         // (setzt bearbeitenFilm auf null), was das Formular über den
-        // useEffect oben automatisch zurücksetzt.
+        // useEffect oben automatisch zurücksetzt (inkl. ausgewählter, aber
+        // noch nicht gespeicherter Foto-Dateien).
       } else if (fotoVorderseite && fotoRueckseite) {
         await onHinzufuegen({ ...felder, fotoVorderseite, fotoRueckseite })
         formElement.reset()
@@ -312,6 +356,36 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
           </button>
 
           {erkennungsHinweis && <p className="hint">{erkennungsHinweis}</p>}
+        </>
+      )}
+
+      {bearbeitungsModus && (
+        <>
+          <label>
+            Foto Vorderseite ändern (optional)
+            {aktuelleFotoVorderseiteUrl && (
+              <img src={aktuelleFotoVorderseiteUrl} alt="Aktuelles Vorderseiten-Foto" className="formular-fotovorschau" />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(ereignis) => setFotoVorderseite(ereignis.target.files?.[0] ?? null)}
+            />
+          </label>
+
+          <label>
+            Foto Rückseite ändern (optional)
+            {aktuelleFotoRueckseiteUrl && (
+              <img src={aktuelleFotoRueckseiteUrl} alt="Aktuelles Rückseiten-Foto" className="formular-fotovorschau" />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(ereignis) => setFotoRueckseite(ereignis.target.files?.[0] ?? null)}
+            />
+          </label>
         </>
       )}
 

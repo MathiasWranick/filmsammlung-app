@@ -9,7 +9,7 @@ import {
   type Filterzustand,
   type Format,
 } from './db/filme'
-import { fotoSpeichern } from './db/fotos'
+import { fotoSpeichern, fotoLoeschen } from './db/fotos'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 
@@ -106,10 +106,33 @@ function App() {
     produktionsland?: string
     sprache?: string
     imdbBewertung?: string
+    neueFotoVorderseite?: File
+    neueFotoRueckseite?: File
   }) {
-    await filmAktualisieren(eingabe)
+    const { neueFotoVorderseite, neueFotoRueckseite, ...felder } = eingabe
+    const bisherigerFilm = filme.find((film) => film.id === eingabe.id)
+
+    // Fotos bleiben standardmäßig unverändert (bisherigen Dateinamen
+    // übernehmen) - nur wenn im Formular tatsächlich eine neue Datei
+    // ausgewählt wurde (z. B. ein Cover aus einer externen Quelle), wird
+    // sie gespeichert und ersetzt die alte, die danach gelöscht wird, damit
+    // sich keine verwaisten Foto-Dateien im Browser-Speicher ansammeln.
+    let fotoDateiname = bisherigerFilm?.fotoDateiname ?? ''
+    let fotoRueckseiteDateiname = bisherigerFilm?.fotoRueckseiteDateiname
+
+    if (neueFotoVorderseite) {
+      fotoDateiname = await fotoSpeichern(eingabe.id, 'vorderseite', neueFotoVorderseite)
+      if (bisherigerFilm?.fotoDateiname) await fotoLoeschen(bisherigerFilm.fotoDateiname)
+    }
+    if (neueFotoRueckseite) {
+      fotoRueckseiteDateiname = await fotoSpeichern(eingabe.id, 'rueckseite', neueFotoRueckseite)
+      if (bisherigerFilm?.fotoRueckseiteDateiname) await fotoLoeschen(bisherigerFilm.fotoRueckseiteDateiname)
+    }
+
+    const aktualisiertesFeldset = { ...felder, fotoDateiname, fotoRueckseiteDateiname }
+    await filmAktualisieren(aktualisiertesFeldset)
     setFilme((vorherigeFilme) =>
-      vorherigeFilme.map((film) => (film.id === eingabe.id ? { ...film, ...eingabe } : film)),
+      vorherigeFilme.map((film) => (film.id === eingabe.id ? { ...film, ...aktualisiertesFeldset } : film)),
     )
     setBearbeitenFilm(null)
   }

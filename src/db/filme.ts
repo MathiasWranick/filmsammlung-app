@@ -168,6 +168,8 @@ export interface FilmAktualisierenEingabe {
   titel: string
   format: Format
   fassung?: string
+  fotoDateiname: string
+  fotoRueckseiteDateiname?: string
   fsk?: string
   laufzeitMinuten?: number
   barcode?: string
@@ -183,10 +185,10 @@ export interface FilmAktualisierenEingabe {
 }
 
 // Aktualisiert die im Formular bearbeitbaren Felder eines bestehenden
-// Films. Fotos und Verleih-Status werden hierüber bewusst nicht verändert:
-// Fotos bleiben wie ursprünglich erfasst (kein erneutes Fotografieren beim
-// Bearbeiten vorgesehen), der Verleih-Status hat eine eigene, schlankere
-// Funktion (siehe filmVerleihStatusSetzen), damit ein schneller
+// Films, inklusive der beiden Foto-Dateinamen (seit Version 1.13 können
+// Fotos beim Bearbeiten ersetzt werden, z. B. durch ein Cover aus einer
+// externen Quelle) - der Verleih-Status hat weiterhin eine eigene,
+// schlankere Funktion (siehe filmVerleihStatusSetzen), damit ein schneller
 // Verleihen/Zurückgeben-Klick in der Liste keinen kompletten
 // Formular-Durchlauf braucht.
 export async function filmAktualisieren(eingabe: FilmAktualisierenEingabe): Promise<void> {
@@ -195,7 +197,8 @@ export async function filmAktualisieren(eingabe: FilmAktualisierenEingabe): Prom
 
   db.run(
     `UPDATE filme SET
-       titel = ?, format = ?, fassung = ?, fsk = ?, laufzeit_minuten = ?, barcode = ?,
+       titel = ?, format = ?, fassung = ?, foto_dateiname = ?, foto_rueckseite_dateiname = ?,
+       fsk = ?, laufzeit_minuten = ?, barcode = ?,
        regisseur = ?, darsteller = ?, handlung = ?, originaltitel = ?, jahr = ?,
        genre = ?, produktionsland = ?, sprache = ?, imdb_bewertung = ?, zuletzt_geaendert = ?
      WHERE id = ?`,
@@ -203,6 +206,8 @@ export async function filmAktualisieren(eingabe: FilmAktualisierenEingabe): Prom
       eingabe.titel.trim(),
       eingabe.format,
       eingabe.fassung ?? null,
+      eingabe.fotoDateiname,
+      eingabe.fotoRueckseiteDateiname ?? null,
       eingabe.fsk ?? null,
       eingabe.laufzeitMinuten ?? null,
       eingabe.barcode ?? null,

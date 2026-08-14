@@ -15,10 +15,15 @@ function dateiEndung(datei: File): string {
 }
 
 // Speichert ein Foto (Vorder- oder Rückseite) unter einem Dateinamen, der
-// auf die technische ID des Films und die Seite verweist, und gibt diesen
-// Dateinamen zum Ablegen in der Datenbank zurück.
+// auf die technische ID des Films, die Seite und einen Zeitstempel verweist,
+// und gibt diesen Dateinamen zum Ablegen in der Datenbank zurück. Der
+// Zeitstempel sorgt dafür, dass beim späteren Ersetzen eines Fotos (z. B.
+// beim Bearbeiten mit einem Cover aus einer externen Quelle) garantiert ein
+// neuer Dateiname entsteht - nur so bemerkt die Filmliste zuverlässig, dass
+// sich das Foto geändert hat und lädt es neu, statt eine ggf. bereits im
+// Browser zwischengespeicherte alte Version weiter anzuzeigen.
 export async function fotoSpeichern(filmId: string, seite: FotoSeite, datei: File): Promise<string> {
-  const dateiname = `${filmId}-${seite}.${dateiEndung(datei)}`
+  const dateiname = `${filmId}-${seite}-${Date.now()}.${dateiEndung(datei)}`
   const ordner = await fotosOrdner()
   const dateiHandle = await ordner.getFileHandle(dateiname, { create: true })
   const schreibStrom = await dateiHandle.createWritable()
@@ -35,4 +40,16 @@ export async function fotoLaden(dateiname: string): Promise<string> {
   const dateiHandle = await ordner.getFileHandle(dateiname)
   const datei = await dateiHandle.getFile()
   return URL.createObjectURL(datei)
+}
+
+// Löscht ein gespeichertes Foto, z. B. die alte Version nach dem Ersetzen
+// durch ein neues Cover. Fehlt die Datei bereits (aus welchem Grund auch
+// immer), ist das kein Problem - dann gibt es einfach nichts zu löschen.
+export async function fotoLoeschen(dateiname: string): Promise<void> {
+  try {
+    const ordner = await fotosOrdner()
+    await ordner.removeEntry(dateiname)
+  } catch {
+    // Datei existierte nicht (mehr) - nichts zu tun.
+  }
 }
