@@ -9,7 +9,7 @@ const DB_DATEINAME = 'filmsammlung.sqlite3'
 
 // Einfache Schema-Versionierung: Jede neue Version fügt bei Bedarf
 // weitere Spalten/Tabellen hinzu, ohne bestehende Daten zu verlieren.
-const AKTUELLE_SCHEMA_VERSION = 4
+const AKTUELLE_SCHEMA_VERSION = 5
 
 let dbInstanz: Database | null = null
 let dbWirdGeoeffnet: Promise<Database> | null = null
@@ -100,6 +100,13 @@ function fuehreMigrationenAus(db: Database): void {
     db.run('ALTER TABLE filme ADD COLUMN produktionsland TEXT')
     db.run('ALTER TABLE filme ADD COLUMN sprache TEXT')
     db.run('ALTER TABLE filme ADD COLUMN imdb_bewertung TEXT')
+  }
+
+  if (vorhandeneVersion < 5) {
+    // Verleih-Felder für Stufe 0.4 (waren im Datenmodell von Anfang an
+    // vorgesehen, jetzt über die Filmkarte direkt nutzbar).
+    db.run('ALTER TABLE filme ADD COLUMN ausgeliehen_an TEXT')
+    db.run('ALTER TABLE filme ADD COLUMN ausgeliehen_am TEXT')
   }
 
   if (vorhandeneVersion === 0) {

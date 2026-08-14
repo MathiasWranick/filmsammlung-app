@@ -2,6 +2,8 @@ import { oeffneDatenbank, sichereAenderungen } from './database'
 
 export type Format = 'DVD' | 'Blu-ray' | '4K UHD' | 'Sonstiges'
 
+export const FORMATE: Format[] = ['DVD', 'Blu-ray', '4K UHD', 'Sonstiges']
+
 export interface Film {
   id: string
   titel: string
@@ -21,6 +23,22 @@ export interface Film {
   produktionsland?: string
   sprache?: string
   imdbBewertung?: string
+  ausgeliehenAn?: string
+  ausgeliehenAm?: string
+}
+
+// Filter-/Suchzustand für Stufe 0.4. "omdbUnvollstaendig" braucht bewusst
+// kein eigenes Datenbankfeld - Genre wird ausschließlich über OMDb befüllt,
+// ein leeres Genre ist deshalb bereits ein zuverlässiger Hinweis darauf,
+// dass die OMDb-Ergänzung für diesen Film noch fehlt oder keinen Treffer
+// hatte (siehe Architekturkonzept, Abschnitt 2.3).
+export interface Filterzustand {
+  suche: string
+  format: Format | ''
+  fsk: string
+  genre: string
+  ausgeliehenStatus: 'alle' | 'verliehen' | 'nicht_verliehen'
+  omdbUnvollstaendig: boolean
 }
 
 interface FilmAnlegenEingabe {
@@ -107,7 +125,8 @@ export async function filmeLaden(): Promise<Film[]> {
   const ergebnis = db.exec(`
     SELECT id, titel, format, foto_dateiname, foto_rueckseite_dateiname, erfasst_am,
            fsk, laufzeit_minuten, barcode, regisseur, darsteller, handlung,
-           originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung
+           originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung,
+           ausgeliehen_an, ausgeliehen_am
     FROM filme
     WHERE geloescht_am IS NULL
     ORDER BY erfasst_am DESC
@@ -134,5 +153,98 @@ export async function filmeLaden(): Promise<Film[]> {
     produktionsland: zeile[15] !== null ? String(zeile[15]) : undefined,
     sprache: zeile[16] !== null ? String(zeile[16]) : undefined,
     imdbBewertung: zeile[17] !== null ? String(zeile[17]) : undefined,
+    ausgeliehenAn: zeile[18] !== null ? String(zeile[18]) : undefined,
+    ausgeliehenAm: zeile[19] !== null ? String(zeile[19]) : undefined,
   }))
+}
+
+export interface FilmAktualisierenEingabe {
+  id: string
+  titel: string
+  format: Format
+  fsk?: string
+  laufzeitMinuten?: number
+  barcode?: string
+  regisseur?: string
+  darsteller?: string
+  handlung?: string
+  originaltitel?: string
+  jahr?: number
+  genre?: string
+  produktionsland?: string
+  sprache?: string
+  imdbBewertung?: string
+}
+
+// Aktualisiert die im Formular bearbeitbaren Felder eines bestehenden
+// Films. Fotos und Verleih-Status werden hierüber bewusst nicht verändert:
+// Fotos bleiben wie ursprünglich erfasst (kein erneutes Fotografieren beim
+// Bearbeiten vorgesehen), der Verleih-Status hat eine eigene, schlankere
+// Funktion (siehe filmVerleihStatusSetzen), damit ein schneller
+// Verleihen/Zurückgeben-Klick in der Liste keinen kompletten
+// Formular-Durchlauf braucht.
+export async function filmAktualisieren(eingabe: FilmAktualisierenEingabe): Promise<void> {
+  const db = await oeffneDatenbank()
+  const jetzt = new Date().toISOString()
+
+  db.run(
+    `UPDATE filme SET
+       titel = ?, format = ?, fsk = ?, laufzeit_minuten = ?, barcode = ?,
+       regisseur = ?, darsteller = ?, handlung = ?, originaltitel = ?, jahr = ?,
+       genre = ?, produktionsland = ?, sprache = ?, imdb_bewertung = ?, zuletzt_geaendert = ?
+     WHERE id = ?`,
+    [
+      eingabe.titel.trim(),
+      eingabe.format,
+      eingabe.fsk ?? null,
+      eingabe.laufzeitMinuten ?? null,
+      eingabe.barcode ?? null,
+      eingabe.regisseur ?? null,
+      eingabe.darsteller ?? null,
+      eingabe.handlung ?? null,
+      eingabe.originaltitel ?? null,
+      eingabe.jahr ?? null,
+      eingabe.genre ?? null,
+      eingabe.produktionsland ?? null,
+      eingabe.sprache ?? null,
+      eingabe.imdbBewertung ?? null,
+      jetzt,
+      eingabe.id,
+    ],
+  )
+
+  await sichereAenderungen()
+}
+
+// Setzt oder löscht (bei undefined) den Verleih-Status eines Films,
+// unabhängig von den übrigen Feldern.
+export async function filmVerleihStatusSetzen(
+  id: string,
+  ausgeliehenAn: string | undefined,
+  ausgeliehenAm: string | undefined,
+): Promise<void> {
+  const db = await oeffneDatenbank()
+  const jetzt = new Date().toISOString()
+
+  db.run('UPDATE filme SET ausgeliehen_an = ?, ausgeliehen_am = ?, zuletzt_geaendert = ? WHERE id = ?', [
+    ausgeliehenAn?.trim() || null,
+    ausgeliehenAm || null,
+    jetzt,
+    id,
+  ])
+
+  await sichereAenderungen()
+}
+
+// Markiert einen Film als gelöscht (Soft-Delete: der Datensatz bleibt in
+// der Datenbank erhalten statt ihn zu entfernen, damit ein späterer
+// Mehrgeräte-Sync in Ausbaustufe 1 die Löschung auf andere Geräte
+// übertragen kann, siehe Architekturkonzept Abschnitt 3.3).
+export async function filmLoeschen(id: string): Promise<void> {
+  const db = await oeffneDatenbank()
+  const jetzt = new Date().toISOString()
+
+  db.run('UPDATE filme SET geloescht_am = ?, zuletzt_geaendert = ? WHERE id = ?', [jetzt, jetzt, id])
+
+  await sichereAenderungen()
 }

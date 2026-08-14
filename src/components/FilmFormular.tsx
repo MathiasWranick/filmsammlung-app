@@ -1,29 +1,34 @@
-import { useState, type FormEvent } from 'react'
-import type { Format } from '../db/filme'
+import { useEffect, useState, type FormEvent } from 'react'
+import { FORMATE, type Film, type Format } from '../db/filme'
 import { erkenneFilmdaten, ErkennungsFehler } from '../ki/bilderkennung'
 import { sucheEindeutig, sucheKandidaten, ladeDetails, type OmdbErgebnis, type OmdbKandidat, type OmdbFehler } from '../omdb/omdb'
 
-const FORMATE: Format[] = ['DVD', 'Blu-ray', '4K UHD', 'Sonstiges']
+interface FilmFelder {
+  titel: string
+  format: Format
+  fsk?: string
+  laufzeitMinuten?: number
+  barcode?: string
+  regisseur?: string
+  darsteller?: string
+  handlung?: string
+  originaltitel?: string
+  jahr?: number
+  genre?: string
+  produktionsland?: string
+  sprache?: string
+  imdbBewertung?: string
+}
 
 interface Props {
-  onHinzufuegen: (eingabe: {
-    titel: string
-    format: Format
-    fotoVorderseite: File
-    fotoRueckseite: File
-    fsk?: string
-    laufzeitMinuten?: number
-    barcode?: string
-    regisseur?: string
-    darsteller?: string
-    handlung?: string
-    originaltitel?: string
-    jahr?: number
-    genre?: string
-    produktionsland?: string
-    sprache?: string
-    imdbBewertung?: string
-  }) => Promise<void>
+  // Ist hier ein Film gesetzt, arbeitet das Formular im Bearbeitungsmodus:
+  // Felder werden vorausgefüllt, die Foto-Erfassung entfällt (Fotos bleiben
+  // wie ursprünglich erfasst), und der Speichern-Button ruft onAktualisieren
+  // statt onHinzufuegen auf.
+  bearbeitenFilm?: Film | null
+  onHinzufuegen: (eingabe: FilmFelder & { fotoVorderseite: File; fotoRueckseite: File }) => Promise<void>
+  onAktualisieren?: (eingabe: FilmFelder & { id: string }) => Promise<void>
+  onAbbrechen?: () => void
 }
 
 // OMDb liefert im Fehlerfall ein normales Error-Objekt mit einem
@@ -33,7 +38,9 @@ function istOmdbFehler(fehler: unknown): fehler is OmdbFehler {
   return fehler instanceof Error && 'code' in fehler
 }
 
-function FilmFormular({ onHinzufuegen }: Props) {
+function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrechen }: Props) {
+  const bearbeitungsModus = Boolean(bearbeitenFilm)
+
   const [titel, setTitel] = useState('')
   const [format, setFormat] = useState<Format>('DVD')
   const [fotoVorderseite, setFotoVorderseite] = useState<File | null>(null)
@@ -58,6 +65,32 @@ function FilmFormular({ onHinzufuegen }: Props) {
   const [omdbKandidaten, setOmdbKandidaten] = useState<OmdbKandidat[] | null>(null)
   const [wirdGespeichert, setWirdGespeichert] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
+
+  // Formularfelder mit den Werten des zu bearbeitenden Films befüllen -
+  // bzw. beim Verlassen des Bearbeitungsmodus (bearbeitenFilm wird null)
+  // wieder auf ein leeres Formular zurücksetzen.
+  useEffect(() => {
+    setTitel(bearbeitenFilm?.titel ?? '')
+    setFormat(bearbeitenFilm?.format ?? 'DVD')
+    setFotoVorderseite(null)
+    setFotoRueckseite(null)
+    setFsk(bearbeitenFilm?.fsk ?? '')
+    setLaufzeit(bearbeitenFilm?.laufzeitMinuten ? String(bearbeitenFilm.laufzeitMinuten) : '')
+    setBarcode(bearbeitenFilm?.barcode ?? '')
+    setRegisseur(bearbeitenFilm?.regisseur ?? '')
+    setDarsteller(bearbeitenFilm?.darsteller ?? '')
+    setHandlung(bearbeitenFilm?.handlung ?? '')
+    setOriginaltitel(bearbeitenFilm?.originaltitel ?? '')
+    setJahr(bearbeitenFilm?.jahr ? String(bearbeitenFilm.jahr) : '')
+    setGenre(bearbeitenFilm?.genre ?? '')
+    setProduktionsland(bearbeitenFilm?.produktionsland ?? '')
+    setSprache(bearbeitenFilm?.sprache ?? '')
+    setImdbBewertung(bearbeitenFilm?.imdbBewertung ?? '')
+    setErkennungsHinweis(null)
+    setOmdbHinweis(null)
+    setOmdbKandidaten(null)
+    setFehler(null)
+  }, [bearbeitenFilm])
 
   // Die KI-Erkennung kostet (wenn auch nur minimal) Kontingent, deshalb
   // läuft sie nicht automatisch beim Foto-Auswählen, sondern erst auf
@@ -110,7 +143,9 @@ function FilmFormular({ onHinzufuegen }: Props) {
 
   // Startet die OMDb-Ergänzung anhand des bereits eingegebenen Titels.
   // Findet OMDb keinen eindeutigen Treffer, wird stattdessen eine
-  // Trefferliste zur Auswahl angezeigt (siehe omdbKandidaten).
+  // Trefferliste zur Auswahl angezeigt (siehe omdbKandidaten). Auch im
+  // Bearbeitungsmodus nutzbar, z. B. um es mit dem englischen Originaltitel
+  // erneut zu versuchen, wenn OMDb unter dem deutschen Titel nichts findet.
   async function omdbStarten() {
     if (!titel.trim()) return
 
@@ -165,59 +200,69 @@ function FilmFormular({ onHinzufuegen }: Props) {
     const formElement = ereignis.currentTarget
     setFehler(null)
 
-    if (!fotoVorderseite) {
-      setFehler('Bitte zuerst ein Foto der Vorderseite auswählen.')
-      return
-    }
-    if (!fotoRueckseite) {
-      setFehler('Bitte auch ein Foto der Rückseite auswählen (dort stehen die meisten Detailangaben).')
-      return
-    }
     if (!titel.trim()) {
       setFehler('Bitte einen Titel eingeben.')
       return
     }
 
+    if (!bearbeitungsModus) {
+      if (!fotoVorderseite) {
+        setFehler('Bitte zuerst ein Foto der Vorderseite auswählen.')
+        return
+      }
+      if (!fotoRueckseite) {
+        setFehler('Bitte auch ein Foto der Rückseite auswählen (dort stehen die meisten Detailangaben).')
+        return
+      }
+    }
+
+    const felder: FilmFelder = {
+      titel,
+      format,
+      fsk: fsk.trim() || undefined,
+      laufzeitMinuten: laufzeit.trim() ? Number(laufzeit) : undefined,
+      barcode: barcode.trim() || undefined,
+      regisseur: regisseur.trim() || undefined,
+      darsteller: darsteller.trim() || undefined,
+      handlung: handlung.trim() || undefined,
+      originaltitel: originaltitel.trim() || undefined,
+      jahr: jahr.trim() ? Number(jahr) : undefined,
+      genre: genre.trim() || undefined,
+      produktionsland: produktionsland.trim() || undefined,
+      sprache: sprache.trim() || undefined,
+      imdbBewertung: imdbBewertung.trim() || undefined,
+    }
+
     setWirdGespeichert(true)
     try {
-      await onHinzufuegen({
-        titel,
-        format,
-        fotoVorderseite,
-        fotoRueckseite,
-        fsk: fsk.trim() || undefined,
-        laufzeitMinuten: laufzeit.trim() ? Number(laufzeit) : undefined,
-        barcode: barcode.trim() || undefined,
-        regisseur: regisseur.trim() || undefined,
-        darsteller: darsteller.trim() || undefined,
-        handlung: handlung.trim() || undefined,
-        originaltitel: originaltitel.trim() || undefined,
-        jahr: jahr.trim() ? Number(jahr) : undefined,
-        genre: genre.trim() || undefined,
-        produktionsland: produktionsland.trim() || undefined,
-        sprache: sprache.trim() || undefined,
-        imdbBewertung: imdbBewertung.trim() || undefined,
-      })
-      setTitel('')
-      setFormat('DVD')
-      setFotoVorderseite(null)
-      setFotoRueckseite(null)
-      setFsk('')
-      setLaufzeit('')
-      setBarcode('')
-      setRegisseur('')
-      setDarsteller('')
-      setHandlung('')
-      setOriginaltitel('')
-      setJahr('')
-      setGenre('')
-      setProduktionsland('')
-      setSprache('')
-      setImdbBewertung('')
-      setErkennungsHinweis(null)
-      setOmdbHinweis(null)
-      setOmdbKandidaten(null)
-      formElement.reset()
+      if (bearbeitungsModus && bearbeitenFilm && onAktualisieren) {
+        await onAktualisieren({ ...felder, id: bearbeitenFilm.id })
+        // Formular bleibt danach im Bearbeitungsmodus - App.tsx beendet ihn
+        // (setzt bearbeitenFilm auf null), was das Formular über den
+        // useEffect oben automatisch zurücksetzt.
+      } else if (fotoVorderseite && fotoRueckseite) {
+        await onHinzufuegen({ ...felder, fotoVorderseite, fotoRueckseite })
+        formElement.reset()
+        setTitel('')
+        setFormat('DVD')
+        setFotoVorderseite(null)
+        setFotoRueckseite(null)
+        setFsk('')
+        setLaufzeit('')
+        setBarcode('')
+        setRegisseur('')
+        setDarsteller('')
+        setHandlung('')
+        setOriginaltitel('')
+        setJahr('')
+        setGenre('')
+        setProduktionsland('')
+        setSprache('')
+        setImdbBewertung('')
+        setErkennungsHinweis(null)
+        setOmdbHinweis(null)
+        setOmdbKandidaten(null)
+      }
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)
       setFehler('Speichern ist fehlgeschlagen. Bitte nochmal versuchen.')
@@ -228,37 +273,41 @@ function FilmFormular({ onHinzufuegen }: Props) {
 
   return (
     <form onSubmit={absenden} className="formular">
-      <h2>Film hinzufügen</h2>
+      <h2>{bearbeitungsModus ? `„${bearbeitenFilm?.titel}“ bearbeiten` : 'Film hinzufügen'}</h2>
 
-      <label>
-        Foto Vorderseite (wird als Vorschaubild verwendet)
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={(ereignis) => setFotoVorderseite(ereignis.target.files?.[0] ?? null)}
-        />
-      </label>
+      {!bearbeitungsModus && (
+        <>
+          <label>
+            Foto Vorderseite (wird als Vorschaubild verwendet)
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(ereignis) => setFotoVorderseite(ereignis.target.files?.[0] ?? null)}
+            />
+          </label>
 
-      <label>
-        Foto Rückseite (hier stehen die meisten Detailangaben)
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={(ereignis) => setFotoRueckseite(ereignis.target.files?.[0] ?? null)}
-        />
-      </label>
+          <label>
+            Foto Rückseite (hier stehen die meisten Detailangaben)
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(ereignis) => setFotoRueckseite(ereignis.target.files?.[0] ?? null)}
+            />
+          </label>
 
-      <button
-        type="button"
-        onClick={erkennungStarten}
-        disabled={!fotoVorderseite || !fotoRueckseite || erkennungLaeuft}
-      >
-        {erkennungLaeuft ? 'Wird erkannt …' : 'Mit KI erkennen'}
-      </button>
+          <button
+            type="button"
+            onClick={erkennungStarten}
+            disabled={!fotoVorderseite || !fotoRueckseite || erkennungLaeuft}
+          >
+            {erkennungLaeuft ? 'Wird erkannt …' : 'Mit KI erkennen'}
+          </button>
 
-      {erkennungsHinweis && <p className="hint">{erkennungsHinweis}</p>}
+          {erkennungsHinweis && <p className="hint">{erkennungsHinweis}</p>}
+        </>
+      )}
 
       <label>
         Titel
@@ -398,9 +447,16 @@ function FilmFormular({ onHinzufuegen }: Props) {
 
       {fehler && <p className="fehler">{fehler}</p>}
 
-      <button type="submit" disabled={wirdGespeichert || erkennungLaeuft}>
-        {wirdGespeichert ? 'Wird gespeichert …' : 'Film speichern'}
-      </button>
+      <div className="formular-aktionen">
+        <button type="submit" disabled={wirdGespeichert || erkennungLaeuft}>
+          {wirdGespeichert ? 'Wird gespeichert …' : bearbeitungsModus ? 'Änderungen speichern' : 'Film speichern'}
+        </button>
+        {bearbeitungsModus && onAbbrechen && (
+          <button type="button" onClick={onAbbrechen}>
+            Abbrechen
+          </button>
+        )}
+      </div>
     </form>
   )
 }
