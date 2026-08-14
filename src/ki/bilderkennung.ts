@@ -128,24 +128,49 @@ export async function erkenneFilmdaten(
     },
   }
 
-  let antwort: Response
-  try {
-    antwort = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODELL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(anfrageKoerper),
-      },
-    )
-  } catch {
-    // fetch() wirft bei fehlender Internetverbindung eine Exception, statt
-    // eine Antwort mit Fehlercode zu liefern.
-    throw new ErkennungsFehler(
-      'offline',
-      'Keine Internetverbindung. Die KI-Erkennung braucht eine bestehende Verbindung, die Filmdaten können aber auch manuell eingegeben werden.',
-    )
+  // Bei Überlastung auf Google-Seite (503/500) lohnt sich ein automatischer,
+  // kurz verzögerter erneuter Versuch, bevor der Nutzer eine Fehlermeldung
+  // sieht - laut Googles eigener Empfehlung für diesen Fehlertyp ("retry
+  // with exponential backoff"). Andere Fehler (offline, Kontingent, falsches
+  // Modell) werden dagegen durch einen Retry nicht besser und schlagen daher
+  // sofort durch.
+  const WARTEZEITEN_MS = [0, 2000, 5000]
+
+  let antwort: Response | null = null
+  for (let versuch = 0; versuch < WARTEZEITEN_MS.length; versuch++) {
+    if (WARTEZEITEN_MS[versuch] > 0) {
+      await new Promise((resolve) => setTimeout(resolve, WARTEZEITEN_MS[versuch]))
+    }
+
+    try {
+      antwort = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODELL}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(anfrageKoerper),
+        },
+      )
+    } catch {
+      // fetch() wirft bei fehlender Internetverbindung eine Exception, statt
+      // eine Antwort mit Fehlercode zu liefern. Ein Retry hilft hier nicht.
+      throw new ErkennungsFehler(
+        'offline',
+        'Keine Internetverbindung. Die KI-Erkennung braucht eine bestehende Verbindung, die Filmdaten können aber auch manuell eingegeben werden.',
+      )
+    }
+
+    const istUeberlastet = antwort.status === 503 || antwort.status === 500
+    const weitereVersucheUebrig = versuch < WARTEZEITEN_MS.length - 1
+    if (istUeberlastet && weitereVersucheUebrig) {
+      continue
+    }
+    break
   }
+
+  // Nach der Schleife ist antwort garantiert gesetzt (mindestens ein
+  // Versuch läuft immer durch, offline wirft vorher schon eine Exception).
+  antwort = antwort as Response
 
   if (antwort.status === 429) {
     throw new ErkennungsFehler(
@@ -169,11 +194,12 @@ export async function erkenneFilmdaten(
   if (antwort.status === 503 || antwort.status === 500) {
     // Kein Fehler in unserer App, sondern eine vorübergehende Überlastung
     // auf Google-Seite (das Modell bekommt gerade mehr Anfragen, als es
-    // verarbeiten kann). Das legt sich normalerweise nach kurzer Zeit von
-    // selbst - ein erneuter Versuch reicht meist aus.
+    // verarbeiten kann). Mehrere automatische Versuche sind bereits
+    // gescheitert (siehe oben) - das deutet auf eine länger anhaltende
+    // Überlastung hin, nicht nur einen kurzen Ausreißer.
     throw new ErkennungsFehler(
       'dienst_ueberlastet',
-      'Die Gemini-KI ist gerade überlastet (vorübergehendes Problem bei Google, kein Fehler in der App). Bitte in ein paar Sekunden erneut auf "Mit KI erkennen" tippen, oder die Daten manuell eingeben.',
+      'Die Gemini-KI ist auch nach mehreren automatischen Versuchen gerade überlastet (Problem bei Google, kein Fehler in der App). Das kann bei sehr gefragten Modellen auch mal länger als ein paar Sekunden dauern. Bitte in ein paar Minuten erneut versuchen oder die Daten manuell eingeben.',
     )
   }
 
