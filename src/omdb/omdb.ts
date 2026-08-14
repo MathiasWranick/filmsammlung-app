@@ -55,6 +55,19 @@ async function omdbAnfrage(parameter: Record<string, string>): Promise<Record<st
     )
   }
 
+  if (antwort.status === 401) {
+    // OMDb meldet einen ungültigen/fehlenden Schlüssel uneinheitlich: mal als
+    // HTTP 401 (wie hier), mal als HTTP 200 mit Fehlertext im JSON (siehe
+    // Prüfung weiter unten) - beide Fälle werden deshalb separat behandelt.
+    // Häufigste Ursache bei einem neu erstellten, kostenlosen Schlüssel: Der
+    // Schlüssel muss erst über den Aktivierungslink in der Bestätigungs-E-Mail
+    // von OMDb freigeschaltet werden, bevor er funktioniert.
+    throw erstelleFehler(
+      'ungueltiger_key',
+      'Der OMDb-API-Schlüssel wird nicht akzeptiert (Fehlercode 401). Meist liegt das daran, dass ein neuer, kostenloser Schlüssel erst über den Aktivierungslink in der Bestätigungs-E-Mail von OMDb freigeschaltet werden muss - bitte Posteingang/Spam-Ordner prüfen. Falls der Schlüssel bereits aktiviert ist, bitte prüfen, ob das Repository-Secret OMDB_API_KEY korrekt hinterlegt ist.',
+    )
+  }
+
   if (!antwort.ok) {
     throw erstelleFehler(
       'unbekannt',
@@ -67,7 +80,7 @@ async function omdbAnfrage(parameter: Record<string, string>): Promise<Record<st
   if (daten.Response === 'False' && daten.Error === 'Invalid API key!') {
     throw erstelleFehler(
       'ungueltiger_key',
-      'Der OMDb-API-Schlüssel wird nicht akzeptiert. Bitte prüfen, ob das Repository-Secret OMDB_API_KEY korrekt hinterlegt ist.',
+      'Der OMDb-API-Schlüssel wird nicht akzeptiert. Meist liegt das daran, dass ein neuer, kostenloser Schlüssel erst über den Aktivierungslink in der Bestätigungs-E-Mail von OMDb freigeschaltet werden muss - bitte Posteingang/Spam-Ordner prüfen. Falls der Schlüssel bereits aktiviert ist, bitte prüfen, ob das Repository-Secret OMDB_API_KEY korrekt hinterlegt ist.',
     )
   }
 
