@@ -34,6 +34,7 @@ export type ErkennungsFehlerCode =
   | 'offline'
   | 'kontingent_aufgebraucht'
   | 'modell_nicht_gefunden'
+  | 'dienst_ueberlastet'
   | 'unbekannt'
 
 export class ErkennungsFehler extends Error {
@@ -162,6 +163,17 @@ export async function erkenneFilmdaten(
     throw new ErkennungsFehler(
       'modell_nicht_gefunden',
       'Das verwendete KI-Modell ist nicht mehr verfügbar (vermutlich von Google eingestellt). Die App muss dafür aktualisiert werden - bitte Bescheid geben. Die Daten können bis dahin manuell eingegeben werden.',
+    )
+  }
+
+  if (antwort.status === 503 || antwort.status === 500) {
+    // Kein Fehler in unserer App, sondern eine vorübergehende Überlastung
+    // auf Google-Seite (das Modell bekommt gerade mehr Anfragen, als es
+    // verarbeiten kann). Das legt sich normalerweise nach kurzer Zeit von
+    // selbst - ein erneuter Versuch reicht meist aus.
+    throw new ErkennungsFehler(
+      'dienst_ueberlastet',
+      'Die Gemini-KI ist gerade überlastet (vorübergehendes Problem bei Google, kein Fehler in der App). Bitte in ein paar Sekunden erneut auf "Mit KI erkennen" tippen, oder die Daten manuell eingeben.',
     )
   }
 
