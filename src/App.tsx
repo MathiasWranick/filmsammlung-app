@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { AccountInfo } from '@azure/msal-browser'
 import {
   filmeLaden,
   filmAnlegen,
@@ -10,6 +11,8 @@ import {
   type Format,
 } from './db/filme'
 import { fotoSpeichern, fotoLoeschen } from './db/fotos'
+import { anmelden, abmelden, angemeldetesKontoLaden } from './auth/msal'
+import { synchronisieren } from './sync/sync'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 import KontoLeiste from './components/KontoLeiste'
@@ -32,11 +35,34 @@ function App() {
   const [bearbeitenFilm, setBearbeitenFilm] = useState<Film | null>(null)
   const [filter, setFilter] = useState<Filterzustand>(FILTER_STANDARD)
 
+  // Microsoft-Anmeldung und OneDrive-Sync (Ausbaustufe 1) - der Zustand
+  // dazu lebt bewusst hier in App.tsx statt in KontoLeiste.tsx, weil sowohl
+  // die Kontoleiste (Anzeige/manueller Button) als auch die
+  // Film-Änderungsfunktionen weiter unten (automatischer Sync nach jeder
+  // Änderung, siehe Version 1.17) darauf zugreifen müssen. KontoLeiste.tsx
+  // zeigt seitdem nur noch an, was ihr über Props übergeben wird.
+  const [konto, setKonto] = useState<AccountInfo | null>(null)
+  const [kontoPruefungAbgeschlossen, setKontoPruefungAbgeschlossen] = useState(false)
+  const [anmeldungLaeuft, setAnmeldungLaeuft] = useState(false)
+  const [syncLaeuft, setSyncLaeuft] = useState(false)
+  const [syncHinweis, setSyncHinweis] = useState<string | null>(null)
+  const [kontoFehler, setKontoFehler] = useState<string | null>(null)
+
+  // Verhindert, dass zwei Synchronisierungen gleichzeitig laufen (z. B. wenn
+  // die Wiederverbindung ausgerechnet passiert, während der Nutzer gerade
+  // manuell auf "Jetzt synchronisieren" geklickt hat).
+  const syncAktivRef = useRef(false)
+  // Hält den aktuellen Anmeldestatus zusätzlich in einer Ref fest, damit der
+  // weiter unten registrierte Wiederverbindungs-Listener (der nur einmal
+  // beim Start eingerichtet wird) immer den aktuellen Stand sieht, statt
+  // dauerhaft den Stand vom allerersten Aufruf zu verwenden.
+  const kontoRef = useRef<AccountInfo | null>(null)
+  kontoRef.current = konto
+
   // In eine eigene, wiederverwendbare Funktion ausgelagert (statt direkt im
   // useEffect), damit sie auch nach einem abgeschlossenen OneDrive-Sync
-  // erneut aufgerufen werden kann (siehe onSyncAbgeschlossen weiter unten) -
-  // ohne den Umweg über einen Ladebildschirm, der beim allerersten Laden
-  // beim App-Start dagegen weiterhin sinnvoll ist.
+  // erneut aufgerufen werden kann - ohne den Umweg über einen Ladebildschirm,
+  // der beim allerersten Laden beim App-Start dagegen weiterhin sinnvoll ist.
   function filmeNeuLaden() {
     return filmeLaden()
       .then((geladeneFilme) => {
@@ -50,8 +76,94 @@ function App() {
       })
   }
 
+  // Zentrale Sync-Funktion für ALLE automatischen und manuellen Auslöser
+  // (App-Start, nach jeder Änderung, Wiederverbindung, manueller Button -
+  // siehe Architekturkonzept Abschnitt 3.3). Bricht bewusst leise ab (ohne
+  // Fehlermeldung), wenn gar nicht angemeldet oder offline ist - das sind
+  // normale, erwartbare Zustände, kein Fehlerfall. Ist eine Änderung offline
+  // entstanden, wird sie beim nächsten erfolgreichen Sync automatisch mit
+  // übertragen, weil sie ja bereits lokal gespeichert ist - dafür ist keine
+  // eigene Warteschlange nötig.
+  async function syncAusfuehren() {
+    if (syncAktivRef.current || !navigator.onLine || !kontoRef.current) return
+
+    syncAktivRef.current = true
+    setSyncLaeuft(true)
+    setKontoFehler(null)
+    try {
+      const ergebnis = await synchronisieren()
+      setSyncHinweis(
+        ergebnis.anzahlAktualisiert > 0
+          ? `Zuletzt synchronisiert: ${ergebnis.anzahlAktualisiert} Film(e) aktualisiert.`
+          : 'Zuletzt synchronisiert: alles aktuell.',
+      )
+      await filmeNeuLaden()
+    } catch (fehlerObjekt) {
+      console.error(fehlerObjekt)
+      setKontoFehler(
+        'Die Synchronisierung ist fehlgeschlagen. Wird bei der nächsten Gelegenheit automatisch erneut versucht.',
+      )
+    } finally {
+      setSyncLaeuft(false)
+      syncAktivRef.current = false
+    }
+  }
+
+  async function anmeldenHandler() {
+    setKontoFehler(null)
+    setAnmeldungLaeuft(true)
+    try {
+      const kontoErgebnis = await anmelden()
+      setKonto(kontoErgebnis)
+      // Ref direkt setzen (nicht auf den nächsten Render warten), damit der
+      // gleich folgende Sync-Aufruf den frischen Anmeldestatus kennt.
+      kontoRef.current = kontoErgebnis
+      await syncAusfuehren()
+    } catch (fehlerObjekt) {
+      console.error(fehlerObjekt)
+      setKontoFehler('Die Anmeldung ist fehlgeschlagen oder wurde abgebrochen. Bitte nochmal versuchen.')
+    } finally {
+      setAnmeldungLaeuft(false)
+    }
+  }
+
+  async function abmeldenHandler() {
+    setKontoFehler(null)
+    try {
+      await abmelden()
+      setKonto(null)
+      kontoRef.current = null
+      setSyncHinweis(null)
+    } catch (fehlerObjekt) {
+      console.error(fehlerObjekt)
+      setKontoFehler('Die Abmeldung ist fehlgeschlagen.')
+    }
+  }
+
   useEffect(() => {
     filmeNeuLaden()
+  }, [])
+
+  // Prüft beim App-Start, ob bereits eine gültige Microsoft-Anmeldung aus
+  // einer früheren Sitzung vorliegt, synchronisiert in diesem Fall sofort
+  // (Auslöser "beim Start der Anwendung"), und richtet einen dauerhaften
+  // Listener ein, der bei jedem Wechsel von offline zu online automatisch
+  // nachsynchronisiert (Auslöser "Wechsel von offline zu online").
+  useEffect(() => {
+    angemeldetesKontoLaden()
+      .then((kontoErgebnis) => {
+        setKonto(kontoErgebnis)
+        kontoRef.current = kontoErgebnis
+        if (kontoErgebnis) syncAusfuehren()
+      })
+      .catch((fehlerObjekt) => console.error(fehlerObjekt))
+      .finally(() => setKontoPruefungAbgeschlossen(true))
+
+    function beiWiederverbindungSynchronisieren() {
+      if (kontoRef.current) syncAusfuehren()
+    }
+    window.addEventListener('online', beiWiederverbindungSynchronisieren)
+    return () => window.removeEventListener('online', beiWiederverbindungSynchronisieren)
   }, [])
 
   async function filmHinzufuegen(eingabe: {
@@ -97,6 +209,10 @@ function App() {
       imdbBewertung: eingabe.imdbBewertung,
     })
     setFilme((vorherigeFilme) => [neuerFilm, ...vorherigeFilme])
+    // Nicht abgewartet (kein "await") - das Speichern soll nicht auf das
+    // Netzwerk warten müssen. syncAusfuehren() bricht von selbst leise ab,
+    // falls nicht angemeldet oder offline.
+    syncAusfuehren()
   }
 
   async function filmAktualisierenHandler(eingabe: {
@@ -145,6 +261,7 @@ function App() {
       vorherigeFilme.map((film) => (film.id === eingabe.id ? { ...film, ...aktualisiertesFeldset } : film)),
     )
     setBearbeitenFilm(null)
+    syncAusfuehren()
   }
 
   function bearbeitenStarten(film: Film) {
@@ -156,6 +273,7 @@ function App() {
     await filmLoeschen(id)
     setFilme((vorherigeFilme) => vorherigeFilme.filter((film) => film.id !== id))
     if (bearbeitenFilm?.id === id) setBearbeitenFilm(null)
+    syncAusfuehren()
   }
 
   async function verleihStatusAendernHandler(
@@ -167,6 +285,7 @@ function App() {
     setFilme((vorherigeFilme) =>
       vorherigeFilme.map((film) => (film.id === id ? { ...film, ausgeliehenAn, ausgeliehenAm } : film)),
     )
+    syncAusfuehren()
   }
 
   // Suche/Filter laufen rein im Speicher über die bereits geladenen Filme -
@@ -195,7 +314,17 @@ function App() {
     <div className="page">
       <h1>Filmsammlung</h1>
 
-      <KontoLeiste onSyncAbgeschlossen={filmeNeuLaden} />
+      <KontoLeiste
+        konto={konto}
+        pruefungAbgeschlossen={kontoPruefungAbgeschlossen}
+        anmeldungLaeuft={anmeldungLaeuft}
+        syncLaeuft={syncLaeuft}
+        syncHinweis={syncHinweis}
+        fehler={kontoFehler}
+        onAnmelden={anmeldenHandler}
+        onAbmelden={abmeldenHandler}
+        onSynchronisieren={syncAusfuehren}
+      />
 
       {ladeStatus === 'laedt' && <p className="hint">Datenbank wird geladen …</p>}
       {ladeStatus === 'fehler' && <p className="fehler">{fehlerText}</p>}
