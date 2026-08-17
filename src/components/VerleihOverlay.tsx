@@ -24,14 +24,30 @@ function VerleihOverlay({ film, onSchliessen, onSpeichern }: Props) {
     onSchliessen()
   }
 
+  // Vermerkt die Rückgabe: leert beide Felder direkt und speichert sofort,
+  // statt den Nutzer zu zwingen, Text- und Datumsfeld erst manuell selbst
+  // zu leeren (Datumsfelder lassen sich auf dem Handy oft nur umständlich
+  // leeren) - Nutzer-Feedback nach dem Test von Schritt 2.
+  function zurueckgeben() {
+    onSpeichern(film.id, undefined, undefined)
+    onSchliessen()
+  }
+
   return (
     <Overlay
       titel={`Verleih: ${film.titel}`}
       onSchliessen={onSchliessen}
       footer={
-        <button type="button" onClick={speichern}>
-          Verleih-Status speichern
-        </button>
+        <>
+          {film.ausgeliehenAn && (
+            <button type="button" onClick={zurueckgeben}>
+              Zurückgeben
+            </button>
+          )}
+          <button type="button" onClick={speichern}>
+            Verleih-Status speichern
+          </button>
+        </>
       }
     >
       <div className="verleih-overlay-felder">

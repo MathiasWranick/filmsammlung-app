@@ -5,6 +5,13 @@
 
 body {
   margin: 0;
+  /* Verhindert horizontales Scrollen der Seite, z. B. wenn auf schmalen
+     Bildschirmen mal ein Element (etwa eine Reihe von Aktions-Buttons) nicht
+     vollständig in die Breite passt. Ohne das kann auf dem Handy die ganze
+     Seite seitlich verschoben werden, wodurch auch fest positionierte
+     Overlays (X-Schließen-Button) teilweise aus dem sichtbaren Bereich
+     rutschen. */
+  overflow-x: hidden;
 }
 
 .page {
@@ -139,6 +146,7 @@ body {
 
 .film-aktionen {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
