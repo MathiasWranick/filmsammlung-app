@@ -75,12 +75,13 @@ function Datensicherung({ onWiederherstellen }: Props) {
 
   return (
     <div className="datensicherung">
-      <button type="button" onClick={herunterladenHandler} disabled={wirdErstellt || wirdWiederhergestellt}>
+      <button type="button" className="sek-btn" onClick={herunterladenHandler} disabled={wirdErstellt || wirdWiederhergestellt}>
         {wirdErstellt ? 'Sicherung wird erstellt …' : 'Datensicherung herunterladen (ZIP)'}
       </button>
 
       <button
         type="button"
+        className="sek-btn"
         onClick={() => dateiEingabeRef.current?.click()}
         disabled={wirdErstellt || wirdWiederhergestellt}
       >

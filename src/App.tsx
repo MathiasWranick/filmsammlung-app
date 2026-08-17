@@ -16,6 +16,8 @@ import { fotoSpeichern, fotoLoeschen } from './db/fotos'
 import { sicherungWiederherstellen, type WiederherstellungsErgebnis } from './backup/backup'
 import { anmelden, abmelden, angemeldetesKontoLaden } from './auth/msal'
 import { synchronisieren } from './sync/sync'
+import Abschnitt from './components/Abschnitt'
+import Datensicherung from './components/Datensicherung'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 import KontoLeiste from './components/KontoLeiste'
@@ -350,17 +352,29 @@ function App() {
         Filmsammlung <span className="build-version">Build {BUILD_VERSION}</span>
       </h1>
 
-      <KontoLeiste
-        konto={konto}
-        pruefungAbgeschlossen={kontoPruefungAbgeschlossen}
-        anmeldungLaeuft={anmeldungLaeuft}
-        syncLaeuft={syncLaeuft}
-        syncHinweis={syncHinweis}
-        fehler={kontoFehler}
-        onAnmelden={anmeldenHandler}
-        onAbmelden={abmeldenHandler}
-        onSynchronisieren={syncAusfuehren}
-      />
+      {/* "Verwaltung" (Ausbaustufe 3, Feinschliff/Version 1.32): fasst alles
+          Administrative - Konto-/Sync-Status und -Aktionen sowie die
+          Datensicherung - in einem einzigen, standardmäßig eingeklappten
+          Abschnitt zusammen, statt wie zuvor als eigenständige, immer
+          sichtbare Leisten (siehe Mockup-Abstimmung zum Kopfbereich). Die
+          beiden Bauteile bleiben dabei unverändert eigenständig - nur die
+          Kopfzeile mit Ein-/Ausklappen kommt von außen (Abschnitt.tsx)
+          dazu, getrennt durch eine einfache Trennlinie. */}
+      <Abschnitt titel="Verwaltung" symbol="⚙">
+        <KontoLeiste
+          konto={konto}
+          pruefungAbgeschlossen={kontoPruefungAbgeschlossen}
+          anmeldungLaeuft={anmeldungLaeuft}
+          syncLaeuft={syncLaeuft}
+          syncHinweis={syncHinweis}
+          fehler={kontoFehler}
+          onAnmelden={anmeldenHandler}
+          onAbmelden={abmeldenHandler}
+          onSynchronisieren={syncAusfuehren}
+        />
+        <hr className="verwaltung-trenner" />
+        <Datensicherung onWiederherstellen={sicherungWiederherstellenHandler} />
+      </Abschnitt>
 
       {ladeStatus === 'laedt' && <p className="hint">Datenbank wird geladen …</p>}
       {ladeStatus === 'fehler' && <p className="fehler">{fehlerText}</p>}
@@ -368,7 +382,7 @@ function App() {
       {ladeStatus === 'bereit' && (
         <>
           <button type="button" className="film-hinzufuegen" onClick={() => setNeuFilmOffen(true)}>
-            + Film hinzufügen
+            Film hinzufügen
           </button>
 
           <FilmListe
@@ -379,7 +393,6 @@ function App() {
             onBearbeiten={bearbeitenStarten}
             onLoeschen={filmLoeschenHandler}
             onVerleihStatusAendern={verleihStatusAendernHandler}
-            onSicherungWiederherstellen={sicherungWiederherstellenHandler}
           />
 
           {(neuFilmOffen || bearbeitenFilm) && (

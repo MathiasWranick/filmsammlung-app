@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { WiederherstellungsErgebnis } from '../backup/backup'
 import { FILTER_STANDARD, FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
 import { fotoLaden } from '../db/fotos'
-import Datensicherung from './Datensicherung'
+import Abschnitt from './Abschnitt'
 import FilmAnzeige from './FilmAnzeige'
 import { AugeIcon, PapierkorbIcon, StiftIcon, TauschIcon } from './Icons'
 import VerleihOverlay from './VerleihOverlay'
@@ -75,6 +74,16 @@ function filmeVergleichen(a: Film, b: Film, feld: Sortierfeld): number {
   }
 }
 
+// Zählt, bei wie vielen Filterfeldern der aktuelle Wert vom Standard
+// (FILTER_STANDARD) abweicht - wird als kleine Zahl im eingeklappten Kopf
+// des "Filter"-Abschnitts angezeigt (Version 1.32), damit trotz
+// eingeklapptem Zustand erkennbar bleibt, dass gerade eingegrenzt wird.
+function filterAktivAnzahl(filter: Filterzustand): number {
+  return (Object.keys(FILTER_STANDARD) as (keyof Filterzustand)[]).filter(
+    (feld) => filter[feld] !== FILTER_STANDARD[feld],
+  ).length
+}
+
 interface FilmKarteProps {
   film: Film
   onAnzeigen: (film: Film) => void
@@ -112,6 +121,7 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: 
         <strong>{film.titel}</strong>
         <div className="hint">
           {film.format}
+          {film.jahr && ` · ${film.jahr}`}
           {film.typ === 'Serie' && ` · Serie${film.staffel ? ` (Staffel ${film.staffel})` : ''}`}
           {film.fsk && ` · FSK ${film.fsk}`}
           {film.laufzeitMinuten && ` · ${film.laufzeitMinuten} Min.`}
@@ -150,7 +160,6 @@ interface Props {
   onBearbeiten: (film: Film) => void
   onLoeschen: (id: string) => void
   onVerleihStatusAendern: (id: string, ausgeliehenAn: string | undefined, ausgeliehenAm: string | undefined) => void
-  onSicherungWiederherstellen: (zipDatei: File) => Promise<WiederherstellungsErgebnis>
 }
 
 function FilmListe({
@@ -161,7 +170,6 @@ function FilmListe({
   onBearbeiten,
   onLoeschen,
   onVerleihStatusAendern,
-  onSicherungWiederherstellen,
 }: Props) {
   // Welcher Film gerade im Anzeige- bzw. Verleih-Overlay offen ist - rein
   // lokaler Anzeigezustand der Liste, muss nicht bis nach App.tsx hochgereicht
@@ -214,74 +222,80 @@ function FilmListe({
 
   return (
     <div>
-      <div className="filterleiste">
-        <input
-          type="text"
-          value={filter.suche}
-          onChange={(ereignis) => feldAendern('suche', ereignis.target.value)}
-          placeholder="Titel suchen …"
-        />
-
-        <select value={filter.format} onChange={(ereignis) => feldAendern('format', ereignis.target.value as Format | '')}>
-          <option value="">Alle Formate</option>
-          {FORMATE.map((einzelnesFormat) => (
-            <option key={einzelnesFormat} value={einzelnesFormat}>
-              {einzelnesFormat}
-            </option>
-          ))}
-        </select>
-
-        <select value={filter.typ} onChange={(ereignis) => feldAendern('typ', ereignis.target.value as Filterzustand['typ'])}>
-          <option value="">Filme &amp; Serien</option>
-          {TYPEN.map((einzelnerTyp) => (
-            <option key={einzelnerTyp} value={einzelnerTyp}>
-              {einzelnerTyp}
-            </option>
-          ))}
-        </select>
-
-        <select value={filter.fsk} onChange={(ereignis) => feldAendern('fsk', ereignis.target.value)}>
-          <option value="">Alle FSK-Stufen</option>
-          {FSK_STUFEN.map((stufe) => (
-            <option key={stufe} value={stufe}>
-              FSK {stufe}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          value={filter.genre}
-          onChange={(ereignis) => feldAendern('genre', ereignis.target.value)}
-          placeholder="Genre enthält …"
-        />
-
-        <select
-          value={filter.ausgeliehenStatus}
-          onChange={(ereignis) => feldAendern('ausgeliehenStatus', ereignis.target.value as Filterzustand['ausgeliehenStatus'])}
-        >
-          <option value="alle">Alle (Verleih-Status)</option>
-          <option value="verliehen">Nur verliehene</option>
-          <option value="nicht_verliehen">Nur nicht verliehene</option>
-        </select>
-
-        <label>
+      <Abschnitt titel="Filter" symbol="▽" badge={filterAktivAnzahl(filter)}>
+        <div className="filterleiste">
           <input
-            type="checkbox"
-            checked={filter.omdbUnvollstaendig}
-            onChange={(ereignis) => feldAendern('omdbUnvollstaendig', ereignis.target.checked)}
+            type="text"
+            value={filter.suche}
+            onChange={(ereignis) => feldAendern('suche', ereignis.target.value)}
+            placeholder="Titel suchen …"
           />
-          OMDb-Daten unvollständig
-        </label>
 
-        <button type="button" onClick={() => onFilterAendern(FILTER_STANDARD)} disabled={!filterIstAktiv}>
-          Filter zurücksetzen
-        </button>
-      </div>
+          <select value={filter.format} onChange={(ereignis) => feldAendern('format', ereignis.target.value as Format | '')}>
+            <option value="">Alle Formate</option>
+            {FORMATE.map((einzelnesFormat) => (
+              <option key={einzelnesFormat} value={einzelnesFormat}>
+                {einzelnesFormat}
+              </option>
+            ))}
+          </select>
 
-      <div className="sortierleiste">
-        <label>
-          Sortieren nach
+          <select value={filter.typ} onChange={(ereignis) => feldAendern('typ', ereignis.target.value as Filterzustand['typ'])}>
+            <option value="">Filme &amp; Serien</option>
+            {TYPEN.map((einzelnerTyp) => (
+              <option key={einzelnerTyp} value={einzelnerTyp}>
+                {einzelnerTyp}
+              </option>
+            ))}
+          </select>
+
+          <select value={filter.fsk} onChange={(ereignis) => feldAendern('fsk', ereignis.target.value)}>
+            <option value="">Alle FSK-Stufen</option>
+            {FSK_STUFEN.map((stufe) => (
+              <option key={stufe} value={stufe}>
+                FSK {stufe}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            value={filter.genre}
+            onChange={(ereignis) => feldAendern('genre', ereignis.target.value)}
+            placeholder="Genre enthält …"
+          />
+
+          <select
+            value={filter.ausgeliehenStatus}
+            onChange={(ereignis) => feldAendern('ausgeliehenStatus', ereignis.target.value as Filterzustand['ausgeliehenStatus'])}
+          >
+            <option value="alle">Alle (Verleih-Status)</option>
+            <option value="verliehen">Nur verliehene</option>
+            <option value="nicht_verliehen">Nur nicht verliehene</option>
+          </select>
+
+          <label>
+            <input
+              type="checkbox"
+              checked={filter.omdbUnvollstaendig}
+              onChange={(ereignis) => feldAendern('omdbUnvollstaendig', ereignis.target.checked)}
+            />
+            OMDb-Daten unvollständig
+          </label>
+        </div>
+
+        <div className="filter-fuss">
+          <button type="button" className="sek-btn" onClick={() => onFilterAendern(FILTER_STANDARD)} disabled={!filterIstAktiv}>
+            Filter zurücksetzen
+          </button>
+        </div>
+      </Abschnitt>
+
+      <div className="abschnitt">
+        <div className="sortier-inline">
+          <span className="sortier-titel">
+            <span aria-hidden="true">⇅</span>Sortieren nach
+          </span>
           <select
             value={sortierung.feld}
             onChange={(ereignis) => sortierungAendern({ feld: ereignis.target.value as Sortierfeld })}
@@ -291,19 +305,17 @@ function FilmListe({
             <option value="jahr">Erscheinungsjahr</option>
             <option value="fsk">FSK-Freigabe</option>
           </select>
-        </label>
 
-        <select
-          value={sortierung.richtung}
-          onChange={(ereignis) => sortierungAendern({ richtung: ereignis.target.value as Sortierrichtung })}
-          aria-label="Sortierrichtung"
-        >
-          <option value="aufsteigend">Aufsteigend</option>
-          <option value="absteigend">Absteigend</option>
-        </select>
+          <select
+            value={sortierung.richtung}
+            onChange={(ereignis) => sortierungAendern({ richtung: ereignis.target.value as Sortierrichtung })}
+            aria-label="Sortierrichtung"
+          >
+            <option value="aufsteigend">Aufsteigend</option>
+            <option value="absteigend">Absteigend</option>
+          </select>
+        </div>
       </div>
-
-      <Datensicherung onWiederherstellen={onSicherungWiederherstellen} />
 
       <p className="hint">
         {filme.length} von {gesamtAnzahl} Filmen angezeigt

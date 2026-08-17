@@ -30,12 +30,14 @@ body {
   color: #6b7280;
 }
 
+/* Zeigt Konto-Status (Angemeldet als/Zuletzt synchronisiert) und die
+   zugehörigen Aktionsbuttons - lebt seit Version 1.32 innerhalb des
+   "Verwaltung"-Abschnitts (siehe Abschnitt.tsx), daher hier bewusst nur noch
+   eine einfache Spalte statt einer eigenen umrandeten Box. */
 .konto-leiste {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
-  margin-bottom: 1rem;
 }
 
 .film-hinzufuegen {
@@ -49,16 +51,119 @@ body {
 }
 
 .datensicherung {
-  /* Sitzt seit Ausbaustufe 3 direkt unter dem Such-/Filterblock statt am
-     Seitenende (Nutzer-Feedback: alle Steuerelemente an einer Stelle,
-     gefolgt von der Liste) - daher Trennlinie/Abstand unten statt oben. */
+  /* Lebt seit Version 1.32 ebenfalls innerhalb des "Verwaltung"-Abschnitts,
+     direkt unter der Kontoleiste (durch eine Trennlinie in App.tsx
+     abgesetzt) - daher hier kein eigener Rahmen/Abstand mehr nötig. */
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Wiederverwendbarer, einheitlich großer Button-Stil für alle
+   "administrativen" Aktionen (Synchronisieren, Abmelden, Datensicherung,
+   Filter zurücksetzen) - löst das Nutzer-Feedback, dass Buttons im
+   Kopfbereich bisher uneinheitlich groß wirkten. Bewusst deutlich kleiner
+   als ".film-hinzufuegen", die einzige bewusst hervorgehobene Haupt-Aktion. */
+.sek-btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+  background: canvas;
+  color: canvastext;
+  cursor: pointer;
+}
+
+.sek-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Ein-/ausklappbarer Abschnitt (Abschnitt.tsx) - gemeinsamer Rahmen für die
+   Blöcke "Verwaltung" und "Filter" sowie (ohne Kopfzeile/Klappfunktion) für
+   die Sortierleiste, damit alle drei Bereiche optisch als gleichrangige,
+   in sich geschlossene Kästen erkennbar sind. */
+.abschnitt {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.abschnitt-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.abschnitt-titel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.abschnitt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: canvastext;
+  color: canvas;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.abschnitt-pfeil {
+  font-size: 0.75rem;
+  color: #6b7280;
+  transition: transform 0.15s ease;
+}
+
+.abschnitt-pfeil.auf {
+  transform: rotate(180deg);
+}
+
+.abschnitt-body {
+  padding: 0.75rem;
+  border-top: 1px solid #d1d5db;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.verwaltung-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.verwaltung-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.verwaltung-trenner {
+  border: none;
+  border-top: 1px solid #d1d5db;
+  margin: 0;
 }
 
 .fehler {
@@ -139,15 +244,14 @@ body {
   flex: 1;
 }
 
+/* Seit Version 1.32 innerhalb des ein-/ausklappbaren "Filter"-Abschnitts
+   (siehe Abschnitt.tsx) eingebettet - daher hier kein eigener Rahmen/Abstand
+   mehr, das übernimmt ".abschnitt"/".abschnitt-body". */
 .filterleiste {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  margin-bottom: 0.75rem;
 }
 
 .filterleiste input,
@@ -164,39 +268,37 @@ body {
   font-size: 0.9rem;
 }
 
-.filterleiste button {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.9rem;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.filterleiste button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Sortierleiste (Ausbaustufe 3, Schritt 6) - bewusst als eigene Leiste statt
-   Teil der Filterleiste, da Sortieren fachlich etwas anderes ist als
-   Filtern (Reihenfolge statt Auswahl), auch wenn optisch dasselbe
-   Baukasten-Muster (Label + Select) wiederverwendet wird. */
-.sortierleiste {
+/* Reihe für den "Filter zurücksetzen"-Button unterhalb der Filterfelder,
+   rechtsbündig (siehe Mockup zur Kopfbereich-Neugestaltung). Der Button
+   selbst nutzt seit Version 1.32 den gemeinsamen ".sek-btn"-Stil. */
+.filter-fuss {
   display: flex;
+  justify-content: flex-end;
+}
+
+/* Sortierleiste (Ausbaustufe 3, Schritt 6) - bewusst als eigener, schmaler
+   Kasten OHNE Ein-/Ausklappfunktion, da sie ohnehin nur zwei Auswahlfelder
+   enthält und kaum Platz braucht (Version 1.32). Sitzt fachlich weiterhin
+   getrennt von der Filterleiste, da Sortieren etwas anderes ist als
+   Filtern (Reihenfolge statt Auswahl). */
+.sortier-inline {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.sortierleiste label {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
   font-size: 0.9rem;
 }
 
-.sortierleiste select {
-  padding: 0.4rem;
+.sortier-inline .sortier-titel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.sortier-inline select {
+  padding: 0.35rem 0.4rem;
   font-size: 0.9rem;
   font-family: inherit;
 }

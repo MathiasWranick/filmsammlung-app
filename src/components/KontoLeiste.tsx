@@ -34,22 +34,34 @@ function KontoLeiste({
 
   return (
     <div className="konto-leiste">
-      {konto ? (
-        <>
+      {/* Status-Zeilen (Anmeldung/Sync) - seit Version 1.32 bewusst von den
+          Aktionsbuttons getrennt, damit dieser Text ausschließlich im
+          aufgeklappten Zustand des "Verwaltung"-Abschnitts sichtbar ist
+          (Nutzer-Wunsch: im eingeklappten Kopf soll dazu nichts stehen). */}
+      {konto && (
+        <div className="verwaltung-status">
           <span className="hint">Angemeldet als {konto.username}</span>
-          <button type="button" onClick={onSynchronisieren} disabled={syncLaeuft}>
-            {syncLaeuft ? 'Synchronisiert …' : 'Jetzt synchronisieren'}
-          </button>
-          <button type="button" onClick={onAbmelden}>
-            Abmelden
-          </button>
-        </>
-      ) : (
-        <button type="button" onClick={onAnmelden} disabled={anmeldungLaeuft}>
-          {anmeldungLaeuft ? 'Wird angemeldet …' : 'Mit Microsoft anmelden (für OneDrive-Sync)'}
-        </button>
+          {syncHinweis && <span className="hint">{syncHinweis}</span>}
+        </div>
       )}
-      {syncHinweis && <span className="hint">{syncHinweis}</span>}
+
+      <div className="verwaltung-aktionen">
+        {konto ? (
+          <>
+            <button type="button" className="sek-btn" onClick={onSynchronisieren} disabled={syncLaeuft}>
+              {syncLaeuft ? 'Synchronisiert …' : 'Jetzt synchronisieren'}
+            </button>
+            <button type="button" className="sek-btn" onClick={onAbmelden}>
+              Abmelden
+            </button>
+          </>
+        ) : (
+          <button type="button" className="sek-btn" onClick={onAnmelden} disabled={anmeldungLaeuft}>
+            {anmeldungLaeuft ? 'Wird angemeldet …' : 'Mit Microsoft anmelden (für OneDrive-Sync)'}
+          </button>
+        )}
+      </div>
+
       {fehler && <p className="fehler">{fehler}</p>}
     </div>
   )
