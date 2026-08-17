@@ -46,6 +46,23 @@ function istOmdbFehler(fehler: unknown): fehler is OmdbFehler {
   return fehler instanceof Error && 'code' in fehler
 }
 
+// Erzeugt einen sprechenden Dateinamen für den Foto-Download (Version 1.20,
+// "Box-Erfassung"): Statt des technischen internen Dateinamens (enthält nur
+// Film-ID und Zeitstempel) bekommt die heruntergeladene Datei den Filmtitel
+// im Namen - praktisch, wenn man das Foto danach im Datei-Dialog eines
+// anderen, manuell anzulegenden Films (z. B. aus derselben Box) wiederfindet.
+// Die Dateiendung wird vom technischen Dateinamen übernommen (meist "jpg").
+function fotoDownloadDateiname(titel: string, seite: 'vorderseite' | 'rueckseite', technischerDateiname: string): string {
+  const endung = technischerDateiname.split('.').pop() || 'jpg'
+  const titelSlug =
+    titel
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'film'
+  return `${titelSlug}-${seite}.${endung}`
+}
+
 function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrechen }: Props) {
   const bearbeitungsModus = Boolean(bearbeitenFilm)
 
@@ -378,8 +395,17 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
         <>
           <label>
             Foto Vorderseite ändern (optional)
-            {aktuelleFotoVorderseiteUrl && (
-              <img src={aktuelleFotoVorderseiteUrl} alt="Aktuelles Vorderseiten-Foto" className="formular-fotovorschau" />
+            {aktuelleFotoVorderseiteUrl && bearbeitenFilm && (
+              <>
+                <img src={aktuelleFotoVorderseiteUrl} alt="Aktuelles Vorderseiten-Foto" className="formular-fotovorschau" />
+                <a
+                  href={aktuelleFotoVorderseiteUrl}
+                  download={fotoDownloadDateiname(bearbeitenFilm.titel, 'vorderseite', bearbeitenFilm.fotoDateiname)}
+                  className="hint"
+                >
+                  Foto herunterladen
+                </a>
+              </>
             )}
             <input
               type="file"
@@ -391,8 +417,17 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
 
           <label>
             Foto Rückseite ändern (optional)
-            {aktuelleFotoRueckseiteUrl && (
-              <img src={aktuelleFotoRueckseiteUrl} alt="Aktuelles Rückseiten-Foto" className="formular-fotovorschau" />
+            {aktuelleFotoRueckseiteUrl && bearbeitenFilm?.fotoRueckseiteDateiname && (
+              <>
+                <img src={aktuelleFotoRueckseiteUrl} alt="Aktuelles Rückseiten-Foto" className="formular-fotovorschau" />
+                <a
+                  href={aktuelleFotoRueckseiteUrl}
+                  download={fotoDownloadDateiname(bearbeitenFilm.titel, 'rueckseite', bearbeitenFilm.fotoRueckseiteDateiname)}
+                  className="hint"
+                >
+                  Foto herunterladen
+                </a>
+              </>
             )}
             <input
               type="file"
