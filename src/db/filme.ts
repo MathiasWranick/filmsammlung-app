@@ -427,3 +427,34 @@ export async function filmeSyncStapelSchreiben(filme: Film[]): Promise<void> {
   }
   await sichereAenderungen()
 }
+
+// Ersetzt die GESAMTE lokale Sammlung durch den Inhalt einer Sicherungsdatei
+// (Ausbaustufe 4, Wiederherstellung aus der ZIP-Datensicherung). Anders als
+// filmeSyncStapelSchreiben() (die einzelne Datensätze anhand ihres
+// Zeitstempels mit dem lokalen Bestand ZUSAMMENFÜHRT) werden hier zunächst
+// ALLE bestehenden Zeilen entfernt - bewusst so, weil diese Funktion für den
+// Ernstfall gedacht ist (Totalverlust oder Beschädigung der lokalen
+// Datenbank): Eine intelligente Zusammenführung würde sich auf die
+// Zeitstempel der ggf. gerade beschädigten lokalen Daten verlassen, was
+// genau im Fehlerfall trügerisch sein kann.
+//
+// "erfasstAm" jedes Films wird unverändert aus der Sicherung übernommen -
+// das ist der Zeitpunkt der ursprünglichen Erfassung und u. a. Grundlage für
+// die Sortierung (siehe FilmListe.tsx), der darf sich durch eine
+// Wiederherstellung nicht ändern. "zuletztGeaendert" wird dagegen bewusst
+// auf den Zeitpunkt der Wiederherstellung gesetzt, ein rein technisches
+// Feld ausschließlich für den OneDrive-Sync: Nur so gilt der wiederhergestellte
+// Stand beim nächsten Sync zuverlässig als der NEUESTE und überschreibt
+// einen möglicherweise ebenfalls fehlerhaften OneDrive-Stand, statt selbst
+// wieder von dort überschrieben zu werden.
+export async function filmeAusSicherungWiederherstellen(filme: Film[]): Promise<void> {
+  const db = await oeffneDatenbank()
+  const jetzt = new Date().toISOString()
+
+  db.run('DELETE FROM filme')
+  for (const film of filme) {
+    filmUpsertRoh(db, { ...film, zuletztGeaendert: jetzt })
+  }
+
+  await sichereAenderungen()
+}

@@ -13,6 +13,7 @@ import {
   type Typ,
 } from './db/filme'
 import { fotoSpeichern, fotoLoeschen } from './db/fotos'
+import { sicherungWiederherstellen, type WiederherstellungsErgebnis } from './backup/backup'
 import { anmelden, abmelden, angemeldetesKontoLaden } from './auth/msal'
 import { synchronisieren } from './sync/sync'
 import FilmFormular from './components/FilmFormular'
@@ -303,6 +304,23 @@ function App() {
     syncAusfuehren()
   }
 
+  // Wiederherstellung aus einer ZIP-Datensicherung (Ausbaustufe 4). Die
+  // eigentliche Wiederherstellungslogik (ZIP einlesen, lokale Datenbank
+  // ersetzen) steckt in sicherungWiederherstellen() - hier kommen danach
+  // nur noch die beiden Schritte dazu, die auch nach jeder anderen Änderung
+  // passieren: den neuen Stand aus der Datenbank in den React-Zustand laden
+  // (filmeNeuLaden, hier bewusst abgewartet statt wie sonst nur angestoßen,
+  // damit die Filmliste sicher aktualisiert ist, bevor der Erfolgshinweis
+  // erscheint) und einen Sync anstoßen, damit der wiederhergestellte Stand
+  // auch in OneDrive ankommt (siehe filmeAusSicherungWiederherstellen in
+  // db/filme.ts für die Begründung, warum das nötig ist).
+  async function sicherungWiederherstellenHandler(zipDatei: File): Promise<WiederherstellungsErgebnis> {
+    const ergebnis = await sicherungWiederherstellen(zipDatei)
+    await filmeNeuLaden()
+    syncAusfuehren()
+    return ergebnis
+  }
+
   // Suche/Filter laufen rein im Speicher über die bereits geladenen Filme -
   // bei ~1.000 Filmen (Zielgröße laut Architekturkonzept) ist das
   // performant genug, ganz ohne zusätzliche Datenbank-Abfragen.
@@ -361,6 +379,7 @@ function App() {
             onBearbeiten={bearbeitenStarten}
             onLoeschen={filmLoeschenHandler}
             onVerleihStatusAendern={verleihStatusAendernHandler}
+            onSicherungWiederherstellen={sicherungWiederherstellenHandler}
           />
 
           {(neuFilmOffen || bearbeitenFilm) && (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { WiederherstellungsErgebnis } from '../backup/backup'
 import { FILTER_STANDARD, FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
 import { fotoLaden } from '../db/fotos'
 import Datensicherung from './Datensicherung'
@@ -149,9 +150,19 @@ interface Props {
   onBearbeiten: (film: Film) => void
   onLoeschen: (id: string) => void
   onVerleihStatusAendern: (id: string, ausgeliehenAn: string | undefined, ausgeliehenAm: string | undefined) => void
+  onSicherungWiederherstellen: (zipDatei: File) => Promise<WiederherstellungsErgebnis>
 }
 
-function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten, onLoeschen, onVerleihStatusAendern }: Props) {
+function FilmListe({
+  filme,
+  gesamtAnzahl,
+  filter,
+  onFilterAendern,
+  onBearbeiten,
+  onLoeschen,
+  onVerleihStatusAendern,
+  onSicherungWiederherstellen,
+}: Props) {
   // Welcher Film gerade im Anzeige- bzw. Verleih-Overlay offen ist - rein
   // lokaler Anzeigezustand der Liste, muss nicht bis nach App.tsx hochgereicht
   // werden (im Unterschied zu bearbeitenFilm, das dort bleibt, weil das
@@ -292,7 +303,7 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
         </select>
       </div>
 
-      <Datensicherung />
+      <Datensicherung onWiederherstellen={onSicherungWiederherstellen} />
 
       <p className="hint">
         {filme.length} von {gesamtAnzahl} Filmen angezeigt
