@@ -291,11 +291,8 @@ function FilmListe({
         </div>
       </Abschnitt>
 
-      <div className="abschnitt">
+      <Abschnitt titel="Sortieren" symbol="⇅">
         <div className="sortier-inline">
-          <span className="sortier-titel">
-            <span aria-hidden="true">⇅</span>Sortieren nach
-          </span>
           <select
             value={sortierung.feld}
             onChange={(ereignis) => sortierungAendern({ feld: ereignis.target.value as Sortierfeld })}
@@ -315,7 +312,7 @@ function FilmListe({
             <option value="absteigend">Absteigend</option>
           </select>
         </div>
-      </div>
+      </Abschnitt>
 
       <p className="hint">
         {filme.length} von {gesamtAnzahl} Filmen angezeigt

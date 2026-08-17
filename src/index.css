@@ -276,25 +276,20 @@ body {
   justify-content: flex-end;
 }
 
-/* Sortierleiste (Ausbaustufe 3, Schritt 6) - bewusst als eigener, schmaler
-   Kasten OHNE Ein-/Ausklappfunktion, da sie ohnehin nur zwei Auswahlfelder
-   enthält und kaum Platz braucht (Version 1.32). Sitzt fachlich weiterhin
-   getrennt von der Filterleiste, da Sortieren etwas anderes ist als
-   Filtern (Reihenfolge statt Auswahl). */
+/* Sortierleiste (Ausbaustufe 3, Schritt 6) - seit Version 1.33 ebenfalls ein
+   ein-/ausklappbarer "Abschnitt" (siehe Abschnitt.tsx), analog zu
+   "Verwaltung" und "Filter": Auf schmalen Handybildschirmen brachen die
+   beiden Auswahlfelder nebeneinander bislang unschön um, sobald zusammen
+   mit den langen Options-Texten (z. B. "Erfassungsdatum") nicht genug
+   Platz war. Eingeklappt zeigt der Kopf nur den Titel, die beiden Felder
+   erscheinen erst nach dem Aufklappen. Sitzt fachlich weiterhin getrennt
+   von der Filterleiste, da Sortieren etwas anderes ist als Filtern
+   (Reihenfolge statt Auswahl). */
 .sortier-inline {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.6rem;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.9rem;
-}
-
-.sortier-inline .sortier-titel {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: 600;
 }
 
 .sortier-inline select {
