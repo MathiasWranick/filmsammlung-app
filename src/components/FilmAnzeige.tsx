@@ -6,7 +6,6 @@ import Overlay from './Overlay'
 interface Props {
   film: Film
   onSchliessen: () => void
-  onBearbeiten: (film: Film) => void
 }
 
 // Eine einzelne Feldzeile - wird bewusst nur angezeigt, wenn tatsächlich ein
@@ -26,10 +25,9 @@ function FeldZeile({ label, wert }: { label: string; wert?: string }) {
 // Umsetzungsschritt) - im Unterschied zum Bearbeitungsformular ohne
 // Eingabefelder und ohne KI-/OMDb-Bereich, dafür mit beiden Fotos in
 // größerer Ansicht statt nur als kleines Vorschaubild in der Filmkarte.
-// "Bearbeiten" schließt die Anzeige und öffnet direkt das (weiterhin
-// bestehende) Bearbeitungsformular - in einem späteren Umsetzungsschritt
-// wandert auch dieses in ein eigenes Overlay, siehe Architekturkonzept.
-function FilmAnzeige({ film, onSchliessen, onBearbeiten }: Props) {
+// Rein lesend: Bearbeiten erfolgt weiterhin über den eigenen Button auf der
+// Filmkarte, nicht mehr über dieses Overlay (Nutzer-Feedback nach Test).
+function FilmAnzeige({ film, onSchliessen }: Props) {
   const [fotoVorderseiteUrl, setFotoVorderseiteUrl] = useState<string | null>(null)
   const [fotoRueckseiteUrl, setFotoRueckseiteUrl] = useState<string | null>(null)
 
@@ -55,21 +53,8 @@ function FilmAnzeige({ film, onSchliessen, onBearbeiten }: Props) {
     }
   }, [film.fotoDateiname, film.fotoRueckseiteDateiname])
 
-  function bearbeitenHandler() {
-    onSchliessen()
-    onBearbeiten(film)
-  }
-
   return (
-    <Overlay
-      titel={film.titel}
-      onSchliessen={onSchliessen}
-      footer={
-        <button type="button" onClick={bearbeitenHandler}>
-          Bearbeiten
-        </button>
-      }
-    >
+    <Overlay titel={film.titel} onSchliessen={onSchliessen}>
       <div className="anzeige-fotos">
         {fotoVorderseiteUrl && <img src={fotoVorderseiteUrl} alt="Vorderseite" className="anzeige-foto" />}
         {fotoRueckseiteUrl && <img src={fotoRueckseiteUrl} alt="Rückseite" className="anzeige-foto" />}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
 import { fotoLaden } from '../db/fotos'
 import FilmAnzeige from './FilmAnzeige'
+import VerleihOverlay from './VerleihOverlay'
 
 const FSK_STUFEN = ['0', '6', '12', '16', '18']
 
@@ -10,13 +11,11 @@ interface FilmKarteProps {
   onAnzeigen: (film: Film) => void
   onBearbeiten: (film: Film) => void
   onLoeschen: (id: string) => void
-  onVerleihStatusAendern: (id: string, ausgeliehenAn: string | undefined, ausgeliehenAm: string | undefined) => void
+  onVerleihen: (film: Film) => void
 }
 
-function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihStatusAendern }: FilmKarteProps) {
+function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: FilmKarteProps) {
   const [fotoUrl, setFotoUrl] = useState<string | null>(null)
-  const [ausgeliehenAnEingabe, setAusgeliehenAnEingabe] = useState(film.ausgeliehenAn ?? '')
-  const [ausgeliehenAmEingabe, setAusgeliehenAmEingabe] = useState(film.ausgeliehenAm ?? '')
 
   useEffect(() => {
     let eigeneObjektUrl: string | null = null
@@ -30,24 +29,6 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihStatus
       if (eigeneObjektUrl) URL.revokeObjectURL(eigeneObjektUrl)
     }
   }, [film.fotoDateiname])
-
-  // Verleih-Eingabefelder synchron halten, falls sich der Status von außen
-  // ändert (z. B. nach "Zurückgeben" oder einer Aktualisierung von einem
-  // anderen Gerät nach einem künftigen Sync).
-  useEffect(() => {
-    setAusgeliehenAnEingabe(film.ausgeliehenAn ?? '')
-    setAusgeliehenAmEingabe(film.ausgeliehenAm ?? '')
-  }, [film.ausgeliehenAn, film.ausgeliehenAm])
-
-  function verleihSpeichern() {
-    onVerleihStatusAendern(film.id, ausgeliehenAnEingabe.trim() || undefined, ausgeliehenAmEingabe || undefined)
-  }
-
-  function zurueckgeben() {
-    setAusgeliehenAnEingabe('')
-    setAusgeliehenAmEingabe('')
-    onVerleihStatusAendern(film.id, undefined, undefined)
-  }
 
   function loeschen() {
     if (window.confirm(`„${film.titel}“ wirklich löschen?`)) {
@@ -63,39 +44,13 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihStatus
         <div className="hint">
           {film.format}
           {film.typ === 'Serie' && ` · Serie${film.staffel ? ` (Staffel ${film.staffel})` : ''}`}
-          {film.fassung && ` (${film.fassung})`}
-          {film.jahr && ` · ${film.jahr}`}
           {film.fsk && ` · FSK ${film.fsk}`}
           {film.laufzeitMinuten && ` · ${film.laufzeitMinuten} Min.`}
-          {film.genre && ` · ${film.genre}`}
-          {film.regisseur && ` · Regie: ${film.regisseur}`}
-        </div>
-
-        <div className="verleih">
-          <label>
-            Ausgeliehen an
-            <input
-              type="text"
-              value={ausgeliehenAnEingabe}
-              onChange={(ereignis) => setAusgeliehenAnEingabe(ereignis.target.value)}
-              placeholder="Name"
-            />
-          </label>
-          <label>
-            am
-            <input
-              type="date"
-              value={ausgeliehenAmEingabe}
-              onChange={(ereignis) => setAusgeliehenAmEingabe(ereignis.target.value)}
-            />
-          </label>
-          <button type="button" onClick={verleihSpeichern}>
-            Verleih-Status speichern
-          </button>
           {film.ausgeliehenAn && (
-            <button type="button" onClick={zurueckgeben}>
-              Zurückgeben
-            </button>
+            <>
+              {' · '}
+              <strong>Verliehen an {film.ausgeliehenAn}</strong>
+            </>
           )}
         </div>
 
@@ -105,6 +60,9 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihStatus
           </button>
           <button type="button" onClick={() => onBearbeiten(film)}>
             Bearbeiten
+          </button>
+          <button type="button" onClick={() => onVerleihen(film)}>
+            Verleihen
           </button>
           <button type="button" onClick={loeschen}>
             Löschen
@@ -126,11 +84,12 @@ interface Props {
 }
 
 function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten, onLoeschen, onVerleihStatusAendern }: Props) {
-  // Welcher Film gerade im Anzeige-Overlay offen ist - rein lokaler
-  // Anzeigezustand der Liste, muss nicht bis nach App.tsx hochgereicht
+  // Welcher Film gerade im Anzeige- bzw. Verleih-Overlay offen ist - rein
+  // lokaler Anzeigezustand der Liste, muss nicht bis nach App.tsx hochgereicht
   // werden (im Unterschied zu bearbeitenFilm, das dort bleibt, weil das
   // Formular weiterhin dort lebt).
   const [anzeigeFilm, setAnzeigeFilm] = useState<Film | null>(null)
+  const [verleihFilm, setVerleihFilm] = useState<Film | null>(null)
 
   function feldAendern<K extends keyof Filterzustand>(feld: K, wert: Filterzustand[K]) {
     onFilterAendern({ ...filter, [feld]: wert })
@@ -214,14 +173,16 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
               onAnzeigen={setAnzeigeFilm}
               onBearbeiten={onBearbeiten}
               onLoeschen={onLoeschen}
-              onVerleihStatusAendern={onVerleihStatusAendern}
+              onVerleihen={setVerleihFilm}
             />
           ))}
         </ul>
       )}
 
-      {anzeigeFilm && (
-        <FilmAnzeige film={anzeigeFilm} onSchliessen={() => setAnzeigeFilm(null)} onBearbeiten={onBearbeiten} />
+      {anzeigeFilm && <FilmAnzeige film={anzeigeFilm} onSchliessen={() => setAnzeigeFilm(null)} />}
+
+      {verleihFilm && (
+        <VerleihOverlay film={verleihFilm} onSchliessen={() => setVerleihFilm(null)} onSpeichern={onVerleihStatusAendern} />
       )}
     </div>
   )

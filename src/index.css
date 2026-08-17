@@ -137,33 +137,6 @@ body {
   font-size: 0.9rem;
 }
 
-.verleih {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  align-items: flex-end;
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-}
-
-.verleih label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.verleih input {
-  padding: 0.3rem;
-  font-size: 0.85rem;
-  font-family: inherit;
-}
-
-.verleih button {
-  padding: 0.3rem 0.5rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
 .film-aktionen {
   display: flex;
   gap: 0.5rem;
@@ -280,4 +253,25 @@ body {
 
 .anzeige-felder dd {
   margin: 0;
+}
+
+/* Verleih-Overlay (Ausbaustufe 3) */
+
+.verleih-overlay-felder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.verleih-overlay-felder label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.verleih-overlay-felder input {
+  padding: 0.5rem;
+  font-size: 1rem;
+  font-family: inherit;
 }
