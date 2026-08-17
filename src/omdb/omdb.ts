@@ -110,19 +110,26 @@ function detailsUmwandeln(daten: Record<string, unknown>): OmdbErgebnis {
   }
 }
 
+// Optionaler OMDb-eigener "type"-Parameter, der die Suche auf Filme oder
+// Serien eingrenzt - wird von der aufrufenden Stelle im Formular anhand des
+// dort gewählten Typs (Film/Serie) mitgegeben, damit z. B. eine gesuchte
+// Serie nicht mit einem gleichnamigen Film verwechselt wird. Ohne Angabe
+// durchsucht OMDb weiterhin alle Kategorien (Filme, Serien, Episoden).
+export type OmdbTyp = 'movie' | 'series'
+
 // Sucht direkt nach einem eindeutigen Treffer für den angegebenen Titel.
 // Liefert null, wenn OMDb keinen eindeutigen Treffer findet (dann lohnt
 // sich ein Versuch mit sucheKandidaten für eine Trefferliste).
-export async function sucheEindeutig(titel: string): Promise<OmdbErgebnis | null> {
-  const daten = await omdbAnfrage({ t: titel })
+export async function sucheEindeutig(titel: string, typ?: OmdbTyp): Promise<OmdbErgebnis | null> {
+  const daten = await omdbAnfrage({ t: titel, ...(typ ? { type: typ } : {}) })
   if (daten.Response === 'False') return null
   return detailsUmwandeln(daten)
 }
 
 // Liefert eine Liste möglicher Treffer, aus der der Nutzer den richtigen
 // Film auswählen kann (z. B. bei mehrdeutigen oder ungenauen Titeln).
-export async function sucheKandidaten(titel: string): Promise<OmdbKandidat[]> {
-  const daten = await omdbAnfrage({ s: titel })
+export async function sucheKandidaten(titel: string, typ?: OmdbTyp): Promise<OmdbKandidat[]> {
+  const daten = await omdbAnfrage({ s: titel, ...(typ ? { type: typ } : {}) })
   if (daten.Response === 'False' || !Array.isArray(daten.Search)) return []
 
   return (daten.Search as Record<string, unknown>[]).map((eintrag) => ({

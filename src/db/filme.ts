@@ -5,11 +5,24 @@ export type Format = 'DVD' | 'Blu-ray' | '4K UHD' | 'Sonstiges'
 
 export const FORMATE: Format[] = ['DVD', 'Blu-ray', '4K UHD', 'Sonstiges']
 
+// Unterscheidung Film/Serie (Ausbaustufe 2) - bewusst eine feste Auswahl
+// (nicht Freitext wie bei "Fassung"), weil hier klar nur zwei Werte
+// vorkommen und die Unterscheidung auch zum Filtern dienen soll.
+export type Typ = 'Film' | 'Serie'
+
+export const TYPEN: Typ[] = ['Film', 'Serie']
+
 export interface Film {
   id: string
   titel: string
   format: Format
   fassung?: string
+  // Nur bei typ === 'Serie' relevant, aber bewusst kein eigenes Feld auf
+  // DB-Ebene erzwungen - bleibt bei Filmen einfach leer. Freitext statt
+  // fester Auswahl, da Angaben wie "Staffel 1-3" oder "Staffel 2" zu
+  // vielfältig für eine Liste sind (gleiches Prinzip wie bei "Fassung").
+  typ: Typ
+  staffel?: string
   fotoDateiname: string
   fotoRueckseiteDateiname?: string
   erfasstAm: string
@@ -47,6 +60,7 @@ export interface Filterzustand {
   format: Format | ''
   fsk: string
   genre: string
+  typ: Typ | ''
   ausgeliehenStatus: 'alle' | 'verliehen' | 'nicht_verliehen'
   omdbUnvollstaendig: boolean
 }
@@ -56,6 +70,8 @@ interface FilmAnlegenEingabe {
   titel: string
   format: Format
   fassung?: string
+  typ: Typ
+  staffel?: string
   fotoDateiname: string
   fotoRueckseiteDateiname?: string
   fsk?: string
@@ -81,6 +97,8 @@ export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
     titel: eingabe.titel.trim(),
     format: eingabe.format,
     fassung: eingabe.fassung,
+    typ: eingabe.typ,
+    staffel: eingabe.staffel,
     fotoDateiname: eingabe.fotoDateiname,
     fotoRueckseiteDateiname: eingabe.fotoRueckseiteDateiname,
     erfasstAm: jetzt,
@@ -103,9 +121,9 @@ export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
     `INSERT INTO filme (
        id, titel, format, fassung, foto_dateiname, foto_rueckseite_dateiname, erfasst_am, zuletzt_geaendert,
        fsk, laufzeit_minuten, barcode, regisseur, darsteller, handlung,
-       originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung
+       originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung, typ, staffel
      )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       film.id,
       film.titel,
@@ -127,6 +145,8 @@ export async function filmAnlegen(eingabe: FilmAnlegenEingabe): Promise<Film> {
       film.produktionsland ?? null,
       film.sprache ?? null,
       film.imdbBewertung ?? null,
+      film.typ,
+      film.staffel ?? null,
     ],
   )
 
@@ -140,7 +160,7 @@ export async function filmeLaden(): Promise<Film[]> {
     SELECT id, titel, format, fassung, foto_dateiname, foto_rueckseite_dateiname, erfasst_am,
            fsk, laufzeit_minuten, barcode, regisseur, darsteller, handlung,
            originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung,
-           ausgeliehen_an, ausgeliehen_am, zuletzt_geaendert
+           ausgeliehen_an, ausgeliehen_am, zuletzt_geaendert, typ, staffel
     FROM filme
     WHERE geloescht_am IS NULL
     ORDER BY erfasst_am DESC
@@ -171,6 +191,8 @@ export async function filmeLaden(): Promise<Film[]> {
     ausgeliehenAn: zeile[19] !== null ? String(zeile[19]) : undefined,
     ausgeliehenAm: zeile[20] !== null ? String(zeile[20]) : undefined,
     zuletztGeaendert: String(zeile[21]),
+    typ: zeile[22] as Typ,
+    staffel: zeile[23] !== null ? String(zeile[23]) : undefined,
   }))
 }
 
@@ -179,6 +201,8 @@ export interface FilmAktualisierenEingabe {
   titel: string
   format: Format
   fassung?: string
+  typ: Typ
+  staffel?: string
   fotoDateiname: string
   fotoRueckseiteDateiname?: string
   fsk?: string
@@ -211,7 +235,7 @@ export async function filmAktualisieren(eingabe: FilmAktualisierenEingabe): Prom
        titel = ?, format = ?, fassung = ?, foto_dateiname = ?, foto_rueckseite_dateiname = ?,
        fsk = ?, laufzeit_minuten = ?, barcode = ?,
        regisseur = ?, darsteller = ?, handlung = ?, originaltitel = ?, jahr = ?,
-       genre = ?, produktionsland = ?, sprache = ?, imdb_bewertung = ?, zuletzt_geaendert = ?
+       genre = ?, produktionsland = ?, sprache = ?, imdb_bewertung = ?, typ = ?, staffel = ?, zuletzt_geaendert = ?
      WHERE id = ?`,
     [
       eingabe.titel.trim(),
@@ -231,6 +255,8 @@ export async function filmAktualisieren(eingabe: FilmAktualisierenEingabe): Prom
       eingabe.produktionsland ?? null,
       eingabe.sprache ?? null,
       eingabe.imdbBewertung ?? null,
+      eingabe.typ,
+      eingabe.staffel ?? null,
       jetzt,
       eingabe.id,
     ],
@@ -284,7 +310,7 @@ export async function filmeFuerSyncLaden(): Promise<Film[]> {
     SELECT id, titel, format, fassung, foto_dateiname, foto_rueckseite_dateiname, erfasst_am,
            fsk, laufzeit_minuten, barcode, regisseur, darsteller, handlung,
            originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung,
-           ausgeliehen_an, ausgeliehen_am, zuletzt_geaendert, geloescht_am
+           ausgeliehen_an, ausgeliehen_am, zuletzt_geaendert, geloescht_am, typ, staffel
     FROM filme
   `)
 
@@ -314,6 +340,8 @@ export async function filmeFuerSyncLaden(): Promise<Film[]> {
     ausgeliehenAm: zeile[20] !== null ? String(zeile[20]) : undefined,
     zuletztGeaendert: String(zeile[21]),
     geloeschtAm: zeile[22] !== null ? String(zeile[22]) : undefined,
+    typ: zeile[23] as Typ,
+    staffel: zeile[24] !== null ? String(zeile[24]) : undefined,
   }))
 }
 
@@ -330,9 +358,9 @@ function filmUpsertRoh(db: Database, film: Film): void {
        id, titel, format, fassung, foto_dateiname, foto_rueckseite_dateiname, erfasst_am,
        fsk, laufzeit_minuten, barcode, regisseur, darsteller, handlung,
        originaltitel, jahr, genre, produktionsland, sprache, imdb_bewertung,
-       ausgeliehen_an, ausgeliehen_am, zuletzt_geaendert, geloescht_am
+       ausgeliehen_an, ausgeliehen_am, zuletzt_geaendert, geloescht_am, typ, staffel
      )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        titel = excluded.titel, format = excluded.format, fassung = excluded.fassung,
        foto_dateiname = excluded.foto_dateiname, foto_rueckseite_dateiname = excluded.foto_rueckseite_dateiname,
@@ -341,7 +369,8 @@ function filmUpsertRoh(db: Database, film: Film): void {
        originaltitel = excluded.originaltitel, jahr = excluded.jahr, genre = excluded.genre,
        produktionsland = excluded.produktionsland, sprache = excluded.sprache, imdb_bewertung = excluded.imdb_bewertung,
        ausgeliehen_an = excluded.ausgeliehen_an, ausgeliehen_am = excluded.ausgeliehen_am,
-       zuletzt_geaendert = excluded.zuletzt_geaendert, geloescht_am = excluded.geloescht_am`,
+       zuletzt_geaendert = excluded.zuletzt_geaendert, geloescht_am = excluded.geloescht_am,
+       typ = excluded.typ, staffel = excluded.staffel`,
     [
       film.id,
       film.titel,
@@ -366,6 +395,8 @@ function filmUpsertRoh(db: Database, film: Film): void {
       film.ausgeliehenAm ?? null,
       film.zuletztGeaendert,
       film.geloeschtAm ?? null,
+      film.typ,
+      film.staffel ?? null,
     ],
   )
 }

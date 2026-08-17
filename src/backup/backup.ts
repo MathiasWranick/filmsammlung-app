@@ -19,6 +19,8 @@ const CSV_SPALTEN: { titel: string; wert: (film: Film) => string }[] = [
   { titel: 'Titel', wert: (f) => f.titel },
   { titel: 'Format', wert: (f) => f.format },
   { titel: 'Fassung', wert: (f) => f.fassung ?? '' },
+  { titel: 'Typ', wert: (f) => f.typ },
+  { titel: 'Staffel', wert: (f) => f.staffel ?? '' },
   { titel: 'FSK', wert: (f) => f.fsk ?? '' },
   { titel: 'Laufzeit (Minuten)', wert: (f) => (f.laufzeitMinuten !== undefined ? String(f.laufzeitMinuten) : '') },
   { titel: 'Regisseur', wert: (f) => f.regisseur ?? '' },

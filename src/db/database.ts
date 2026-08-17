@@ -9,7 +9,7 @@ const DB_DATEINAME = 'filmsammlung.sqlite3'
 
 // Einfache Schema-Versionierung: Jede neue Version fügt bei Bedarf
 // weitere Spalten/Tabellen hinzu, ohne bestehende Daten zu verlieren.
-const AKTUELLE_SCHEMA_VERSION = 6
+const AKTUELLE_SCHEMA_VERSION = 7
 
 let dbInstanz: Database | null = null
 let dbWirdGeoeffnet: Promise<Database> | null = null
@@ -117,6 +117,16 @@ function fuehreMigrationenAus(db: Database): void {
     // der KI-Bilderkennung vorgeschlagen (falls auf der Hülle vermerkt),
     // bleibt aber wie alle anderen Felder frei editierbar.
     db.run('ALTER TABLE filme ADD COLUMN fassung TEXT')
+  }
+
+  if (vorhandeneVersion < 7) {
+    // Unterscheidung Film/Serie plus Staffel-Angabe (Ausbaustufe 2): Beim
+    // Erfassen fiel auf, dass neben Filmen auch Serien gesammelt werden,
+    // die sich klar unterscheiden und danach filtern lassen sollen. Alle
+    // bisherigen Datensätze erhalten automatisch den Standardwert "Film" -
+    // das war bei ihnen tatsächlich auch der Fall.
+    db.run("ALTER TABLE filme ADD COLUMN typ TEXT NOT NULL DEFAULT 'Film'")
+    db.run('ALTER TABLE filme ADD COLUMN staffel TEXT')
   }
 
   if (vorhandeneVersion === 0) {

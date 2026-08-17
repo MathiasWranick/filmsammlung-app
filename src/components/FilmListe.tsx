@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FORMATE, type Film, type Filterzustand, type Format } from '../db/filme'
+import { FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
 import { fotoLaden } from '../db/fotos'
 
 const FSK_STUFEN = ['0', '6', '12', '16', '18']
@@ -60,6 +60,7 @@ function FilmKarte({ film, onBearbeiten, onLoeschen, onVerleihStatusAendern }: F
         <strong>{film.titel}</strong>
         <div className="hint">
           {film.format}
+          {film.typ === 'Serie' && ` · Serie${film.staffel ? ` (Staffel ${film.staffel})` : ''}`}
           {film.fassung && ` (${film.fassung})`}
           {film.jahr && ` · ${film.jahr}`}
           {film.fsk && ` · FSK ${film.fsk}`}
@@ -139,6 +140,15 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
           {FORMATE.map((einzelnesFormat) => (
             <option key={einzelnesFormat} value={einzelnesFormat}>
               {einzelnesFormat}
+            </option>
+          ))}
+        </select>
+
+        <select value={filter.typ} onChange={(ereignis) => feldAendern('typ', ereignis.target.value as Filterzustand['typ'])}>
+          <option value="">Filme &amp; Serien</option>
+          {TYPEN.map((einzelnerTyp) => (
+            <option key={einzelnerTyp} value={einzelnerTyp}>
+              {einzelnerTyp}
             </option>
           ))}
         </select>

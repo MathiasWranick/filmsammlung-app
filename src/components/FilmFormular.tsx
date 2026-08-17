@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { FORMATE, type Film, type Format } from '../db/filme'
+import { FORMATE, TYPEN, type Film, type Format, type Typ } from '../db/filme'
 import { erkenneFilmdaten, ErkennungsFehler } from '../ki/bilderkennung'
 import { sucheEindeutig, sucheKandidaten, ladeDetails, type OmdbErgebnis, type OmdbKandidat, type OmdbFehler } from '../omdb/omdb'
 import { fotoLaden } from '../db/fotos'
@@ -8,6 +8,8 @@ interface FilmFelder {
   titel: string
   format: Format
   fassung?: string
+  typ: Typ
+  staffel?: string
   fsk?: string
   laufzeitMinuten?: number
   barcode?: string
@@ -50,6 +52,8 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
   const [titel, setTitel] = useState('')
   const [format, setFormat] = useState<Format>('DVD')
   const [fassung, setFassung] = useState('')
+  const [typ, setTyp] = useState<Typ>('Film')
+  const [staffel, setStaffel] = useState('')
   const [fotoVorderseite, setFotoVorderseite] = useState<File | null>(null)
   const [fotoRueckseite, setFotoRueckseite] = useState<File | null>(null)
   const [fsk, setFsk] = useState('')
@@ -83,6 +87,8 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
     setTitel(bearbeitenFilm?.titel ?? '')
     setFormat(bearbeitenFilm?.format ?? 'DVD')
     setFassung(bearbeitenFilm?.fassung ?? '')
+    setTyp(bearbeitenFilm?.typ ?? 'Film')
+    setStaffel(bearbeitenFilm?.staffel ?? '')
     setFotoVorderseite(null)
     setFotoRueckseite(null)
     setFsk(bearbeitenFilm?.fsk ?? '')
@@ -148,6 +154,8 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
       if (ergebnis.format && FORMATE.includes(ergebnis.format as Format)) {
         setFormat(ergebnis.format as Format)
       }
+      if (ergebnis.typ && TYPEN.includes(ergebnis.typ as Typ)) setTyp(ergebnis.typ as Typ)
+      if (ergebnis.staffel && !staffel.trim()) setStaffel(ergebnis.staffel)
       if (ergebnis.fassung && !fassung.trim()) setFassung(ergebnis.fassung)
       if (ergebnis.fsk) setFsk(ergebnis.fsk)
       if (ergebnis.laufzeitMinuten) setLaufzeit(String(ergebnis.laufzeitMinuten))
@@ -194,12 +202,15 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
     setOmdbHinweis(null)
     setOmdbKandidaten(null)
     setOmdbLaeuft(true)
+    // Bei einer Serie wird OMDb gezielt auf Serien eingegrenzt (statt auch
+    // gleichnamige Filme/Episoden zu liefern) - siehe omdb.ts.
+    const omdbTyp = typ === 'Serie' ? 'series' : undefined
     try {
-      const treffer = await sucheEindeutig(titel)
+      const treffer = await sucheEindeutig(titel, omdbTyp)
       if (treffer) {
         omdbErgebnisUebernehmen(treffer)
       } else {
-        const kandidaten = await sucheKandidaten(titel)
+        const kandidaten = await sucheKandidaten(titel, omdbTyp)
         if (kandidaten.length === 0) {
           setOmdbHinweis('Kein Treffer bei OMDb gefunden. Die Daten können manuell eingegeben werden.')
         } else {
@@ -262,6 +273,8 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
       titel,
       format,
       fassung: fassung.trim() || undefined,
+      typ,
+      staffel: typ === 'Serie' ? staffel.trim() || undefined : undefined,
       fsk: fsk.trim() || undefined,
       laufzeitMinuten: laufzeit.trim() ? Number(laufzeit) : undefined,
       barcode: barcode.trim() || undefined,
@@ -295,6 +308,8 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
         setTitel('')
         setFormat('DVD')
         setFassung('')
+        setTyp('Film')
+        setStaffel('')
         setFotoVorderseite(null)
         setFotoRueckseite(null)
         setFsk('')
@@ -409,6 +424,29 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
           ))}
         </select>
       </label>
+
+      <label>
+        Typ
+        <select value={typ} onChange={(ereignis) => setTyp(ereignis.target.value as Typ)}>
+          {TYPEN.map((einzelnerTyp) => (
+            <option key={einzelnerTyp} value={einzelnerTyp}>
+              {einzelnerTyp}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {typ === 'Serie' && (
+        <label>
+          Staffel
+          <input
+            type="text"
+            value={staffel}
+            onChange={(ereignis) => setStaffel(ereignis.target.value)}
+            placeholder="z. B. Staffel 1-3, Staffel 2"
+          />
+        </label>
+      )}
 
       <label>
         Fassung/Edition

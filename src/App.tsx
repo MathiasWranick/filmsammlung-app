@@ -9,6 +9,7 @@ import {
   type Film,
   type Filterzustand,
   type Format,
+  type Typ,
 } from './db/filme'
 import { fotoSpeichern, fotoLoeschen } from './db/fotos'
 import { anmelden, abmelden, angemeldetesKontoLaden } from './auth/msal'
@@ -25,6 +26,7 @@ const FILTER_STANDARD: Filterzustand = {
   format: '',
   fsk: '',
   genre: '',
+  typ: '',
   ausgeliehenStatus: 'alle',
   omdbUnvollstaendig: false,
 }
@@ -171,6 +173,8 @@ function App() {
     titel: string
     format: Format
     fassung?: string
+    typ: Typ
+    staffel?: string
     fotoVorderseite: File
     fotoRueckseite: File
     fsk?: string
@@ -194,6 +198,8 @@ function App() {
       titel: eingabe.titel,
       format: eingabe.format,
       fassung: eingabe.fassung,
+      typ: eingabe.typ,
+      staffel: eingabe.staffel,
       fotoDateiname,
       fotoRueckseiteDateiname,
       fsk: eingabe.fsk,
@@ -221,6 +227,8 @@ function App() {
     titel: string
     format: Format
     fassung?: string
+    typ: Typ
+    staffel?: string
     fsk?: string
     laufzeitMinuten?: number
     barcode?: string
@@ -299,6 +307,7 @@ function App() {
     return filme.filter((film) => {
       if (sucheKleingeschrieben && !film.titel.toLowerCase().includes(sucheKleingeschrieben)) return false
       if (filter.format && film.format !== filter.format) return false
+      if (filter.typ && film.typ !== filter.typ) return false
       if (filter.fsk && film.fsk !== filter.fsk) return false
       if (genreKleingeschrieben && !film.genre?.toLowerCase().includes(genreKleingeschrieben)) return false
       if (filter.ausgeliehenStatus === 'verliehen' && !film.ausgeliehenAn) return false
