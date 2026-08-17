@@ -18,6 +18,7 @@ import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 import KontoLeiste from './components/KontoLeiste'
 import Datensicherung from './components/Datensicherung'
+import Overlay from './components/Overlay'
 
 type LadeStatus = 'laedt' | 'bereit' | 'fehler'
 
@@ -36,6 +37,13 @@ function App() {
   const [ladeStatus, setLadeStatus] = useState<LadeStatus>('laedt')
   const [fehlerText, setFehlerText] = useState<string | null>(null)
   const [bearbeitenFilm, setBearbeitenFilm] = useState<Film | null>(null)
+  // Ob das Formular-Overlay im Hinzufügen-Modus offen ist - unabhängig von
+  // bearbeitenFilm, das weiterhin den Bearbeitungsmodus abbildet (siehe
+  // Ausbaustufe 3, Schritt 3: Formular wandert vom immer sichtbaren
+  // Inline-Bereich in ein Overlay, das über einen neuen "Film
+  // hinzufügen"-Button bzw. weiterhin über "Bearbeiten" auf der Filmkarte
+  // geöffnet wird).
+  const [neuFilmOffen, setNeuFilmOffen] = useState(false)
   const [filter, setFilter] = useState<Filterzustand>(FILTER_STANDARD)
 
   // Microsoft-Anmeldung und OneDrive-Sync (Ausbaustufe 1) - der Zustand
@@ -275,7 +283,14 @@ function App() {
 
   function bearbeitenStarten(film: Film) {
     setBearbeitenFilm(film)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Schließt das Formular-Overlay wieder, egal ob es gerade im Hinzufügen-
+  // oder im Bearbeiten-Modus offen war - z. B. über das X, Klick auf den
+  // abgedunkelten Hintergrund, Escape, oder den Abbrechen-Button im Formular.
+  function formularSchliessen() {
+    setNeuFilmOffen(false)
+    setBearbeitenFilm(null)
   }
 
   async function filmLoeschenHandler(id: string) {
@@ -341,12 +356,10 @@ function App() {
 
       {ladeStatus === 'bereit' && (
         <>
-          <FilmFormular
-            bearbeitenFilm={bearbeitenFilm}
-            onHinzufuegen={filmHinzufuegen}
-            onAktualisieren={filmAktualisierenHandler}
-            onAbbrechen={() => setBearbeitenFilm(null)}
-          />
+          <button type="button" className="film-hinzufuegen" onClick={() => setNeuFilmOffen(true)}>
+            + Film hinzufügen
+          </button>
+
           <FilmListe
             filme={gefilterteFilme}
             gesamtAnzahl={filme.length}
@@ -356,6 +369,21 @@ function App() {
             onLoeschen={filmLoeschenHandler}
             onVerleihStatusAendern={verleihStatusAendernHandler}
           />
+
+          {(neuFilmOffen || bearbeitenFilm) && (
+            <Overlay
+              titel={bearbeitenFilm ? `„${bearbeitenFilm.titel}“ bearbeiten` : 'Film hinzufügen'}
+              onSchliessen={formularSchliessen}
+            >
+              <FilmFormular
+                bearbeitenFilm={bearbeitenFilm}
+                onHinzufuegen={filmHinzufuegen}
+                onAktualisieren={filmAktualisierenHandler}
+                onAbbrechen={formularSchliessen}
+              />
+            </Overlay>
+          )}
+
           <Datensicherung />
         </>
       )}

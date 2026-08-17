@@ -32,6 +32,16 @@ body {
   margin-bottom: 1rem;
 }
 
+.film-hinzufuegen {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .datensicherung {
   display: flex;
   flex-wrap: wrap;
@@ -47,13 +57,14 @@ body {
 }
 
 .formular {
+  /* Rahmen/Innenabstand/Abstand-nach-unten bewusst NICHT mehr hier - das
+     Formular steckt seit Ausbaustufe 3 (Schritt 3) immer im Overlay-Bauteil,
+     das seine eigene Box (Rahmen, Innenabstand) bereits mitbringt. Ein
+     zusätzlicher Rahmen ums Formular herum hätte sonst wie eine Box in der
+     Box ausgesehen. */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  margin-bottom: 1.5rem;
 }
 
 .formular label {

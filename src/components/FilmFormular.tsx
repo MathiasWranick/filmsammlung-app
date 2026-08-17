@@ -355,8 +355,6 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
 
   return (
     <form onSubmit={absenden} className="formular">
-      <h2>{bearbeitungsModus ? `„${bearbeitenFilm?.titel}“ bearbeiten` : 'Film hinzufügen'}</h2>
-
       {!bearbeitungsModus && (
         <>
           <label>
@@ -614,7 +612,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
         <button type="submit" disabled={wirdGespeichert || erkennungLaeuft}>
           {wirdGespeichert ? 'Wird gespeichert …' : bearbeitungsModus ? 'Änderungen speichern' : 'Film speichern'}
         </button>
-        {bearbeitungsModus && onAbbrechen && (
+        {onAbbrechen && (
           <button type="button" onClick={onAbbrechen}>
             Abbrechen
           </button>
