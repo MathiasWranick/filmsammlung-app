@@ -6,6 +6,7 @@ import {
   filmAktualisieren,
   filmLoeschen,
   filmVerleihStatusSetzen,
+  FILTER_STANDARD,
   type Film,
   type Filterzustand,
   type Format,
@@ -21,16 +22,6 @@ import Overlay from './components/Overlay'
 import { BUILD_VERSION } from './version'
 
 type LadeStatus = 'laedt' | 'bereit' | 'fehler'
-
-const FILTER_STANDARD: Filterzustand = {
-  suche: '',
-  format: '',
-  fsk: '',
-  genre: '',
-  typ: '',
-  ausgeliehenStatus: 'alle',
-  omdbUnvollstaendig: false,
-}
 
 function App() {
   const [filme, setFilme] = useState<Film[]>([])

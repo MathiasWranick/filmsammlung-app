@@ -65,6 +65,21 @@ export interface Filterzustand {
   omdbUnvollstaendig: boolean
 }
 
+// Leerer/Grundzustand des Filters - an einer einzigen Stelle definiert
+// (statt z. B. doppelt in App.tsx und FilmListe.tsx), damit App.tsx (Startwert
+// beim Laden) und der "Filter zurücksetzen"-Button in FilmListe.tsx (seit
+// Version 1.29) garantiert denselben Zustand verwenden, ohne dass beide bei
+// einer künftigen Änderung an Filterzustand einzeln nachgezogen werden müssen.
+export const FILTER_STANDARD: Filterzustand = {
+  suche: '',
+  format: '',
+  fsk: '',
+  genre: '',
+  typ: '',
+  ausgeliehenStatus: 'alle',
+  omdbUnvollstaendig: false,
+}
+
 interface FilmAnlegenEingabe {
   id: string
   titel: string

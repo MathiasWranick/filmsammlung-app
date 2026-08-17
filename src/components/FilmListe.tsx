@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
+import { useEffect, useState } from 'react'
+import { FILTER_STANDARD, FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
 import { fotoLaden } from '../db/fotos'
 import Datensicherung from './Datensicherung'
 import FilmAnzeige from './FilmAnzeige'
@@ -7,35 +7,6 @@ import { AugeIcon, PapierkorbIcon, StiftIcon, TauschIcon } from './Icons'
 import VerleihOverlay from './VerleihOverlay'
 
 const FSK_STUFEN = ['0', '6', '12', '16', '18']
-
-// Anzahl-Auswahl / Skalierung (Ausbaustufe 3, Schritt 5): begrenzt, wie
-// viele der gefundenen Filme tatsächlich als Karten gerendert werden - bei
-// wachsender Sammlung (Zielgröße laut Architekturkonzept ca. 1.000 Filme)
-// hält das die Liste auch dann noch flüssig bedienbar, wenn Suche/Filter
-// gerade nicht eingegrenzt haben. Wirkt bewusst NACH Suche/Filter, nicht
-// davor - eine Suche/ein Filter soll immer alle passenden Treffer im
-// Ergebnis berücksichtigen, nur die Darstellung wird gedeckelt.
-type AnzeigeAnzahl = '10' | '50' | '100' | 'alle'
-const ANZEIGE_ANZAHL_SPEICHERSCHLUESSEL = 'filmsammlung-anzeige-anzahl'
-const ANZEIGE_ANZAHL_STANDARD: AnzeigeAnzahl = '10'
-
-// Liest eine zuvor gewählte Anzeigeanzahl aus dem lokalen Browser-Speicher
-// (bewusst NICHT über den OneDrive-Sync geteilt - das ist eine reine
-// Anzeige-Einstellung des jeweiligen Geräts, kein Datensammlungs-Inhalt).
-// In try/catch, weil manche Browser (z. B. Safari im privaten Modus)
-// den Zugriff auf localStorage verweigern können - in dem Fall wird
-// einfach der Standardwert verwendet, ohne dass die App abstürzt.
-function anzeigeAnzahlAusSpeicherLesen(): AnzeigeAnzahl {
-  try {
-    const gespeichert = window.localStorage.getItem(ANZEIGE_ANZAHL_SPEICHERSCHLUESSEL)
-    if (gespeichert === '10' || gespeichert === '50' || gespeichert === '100' || gespeichert === 'alle') {
-      return gespeichert
-    }
-  } catch {
-    // localStorage nicht verfügbar - Standardwert weiter unten übernehmen.
-  }
-  return ANZEIGE_ANZAHL_STANDARD
-}
 
 interface FilmKarteProps {
   film: Film
@@ -121,31 +92,16 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
   // Formular weiterhin dort lebt).
   const [anzeigeFilm, setAnzeigeFilm] = useState<Film | null>(null)
   const [verleihFilm, setVerleihFilm] = useState<Film | null>(null)
-  const [anzeigeAnzahl, setAnzeigeAnzahl] = useState<AnzeigeAnzahl>(anzeigeAnzahlAusSpeicherLesen)
 
   function feldAendern<K extends keyof Filterzustand>(feld: K, wert: Filterzustand[K]) {
     onFilterAendern({ ...filter, [feld]: wert })
   }
 
-  function anzeigeAnzahlAendern(wert: AnzeigeAnzahl) {
-    setAnzeigeAnzahl(wert)
-    try {
-      window.localStorage.setItem(ANZEIGE_ANZAHL_SPEICHERSCHLUESSEL, wert)
-    } catch {
-      // Persistenz ist hier nur "nice to have" - schlägt das Speichern fehl
-      // (z. B. Safari privater Modus), bleibt die Auswahl für die laufende
-      // Sitzung trotzdem wirksam, sie überlebt nur einen Neustart nicht.
-    }
-  }
-
-  // Deckelt die gefilterten Treffer erst hier, ganz am Ende - filme (die
-  // Trefferliste nach Suche/Filter) bleibt dafür unangetastet, damit z. B.
-  // der Hinweistext weiter unten weiß, wie viele Treffer es TATSÄCHLICH
-  // gibt, auch wenn davon nur ein Teil gerendert wird.
-  const sichtbareFilme = useMemo(
-    () => (anzeigeAnzahl === 'alle' ? filme : filme.slice(0, Number(anzeigeAnzahl))),
-    [filme, anzeigeAnzahl],
-  )
+  // Erkennt, ob mindestens ein Filter/eine Suche aktuell tatsächlich
+  // eingegrenzt ist - steuert, ob der "Filter zurücksetzen"-Button
+  // (Version 1.29) etwas zu tun hätte, oder ob er deaktiviert bleibt, um
+  // nicht so zu wirken, als würde ein Klick etwas verändern.
+  const filterIstAktiv = JSON.stringify(filter) !== JSON.stringify(FILTER_STANDARD)
 
   return (
     <div>
@@ -209,32 +165,22 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
           OMDb-Daten unvollständig
         </label>
 
-        <label>
-          Anzeige
-          <select
-            value={anzeigeAnzahl}
-            onChange={(ereignis) => anzeigeAnzahlAendern(ereignis.target.value as AnzeigeAnzahl)}
-          >
-            <option value="10">10</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-            <option value="alle">Alle</option>
-          </select>
-        </label>
+        <button type="button" onClick={() => onFilterAendern(FILTER_STANDARD)} disabled={!filterIstAktiv}>
+          Filter zurücksetzen
+        </button>
       </div>
 
       <Datensicherung />
 
       <p className="hint">
-        {filme.length} von {gesamtAnzahl} Filmen gefunden
-        {sichtbareFilme.length < filme.length && ` · zeige ${sichtbareFilme.length}`}
+        {filme.length} von {gesamtAnzahl} Filmen angezeigt
       </p>
 
       {filme.length === 0 ? (
         <p className="hint">{gesamtAnzahl === 0 ? 'Noch keine Filme erfasst.' : 'Keine Filme gefunden - Suche/Filter anpassen.'}</p>
       ) : (
         <ul className="film-liste">
-          {sichtbareFilme.map((film) => (
+          {filme.map((film) => (
             <FilmKarte
               key={film.id}
               film={film}

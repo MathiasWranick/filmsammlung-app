@@ -164,6 +164,18 @@ body {
   font-size: 0.9rem;
 }
 
+.filterleiste button {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.filterleiste button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .film-aktionen {
   display: flex;
   flex-wrap: wrap;
