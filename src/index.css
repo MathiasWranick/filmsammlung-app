@@ -176,6 +176,31 @@ body {
   cursor: not-allowed;
 }
 
+/* Sortierleiste (Ausbaustufe 3, Schritt 6) - bewusst als eigene Leiste statt
+   Teil der Filterleiste, da Sortieren fachlich etwas anderes ist als
+   Filtern (Reihenfolge statt Auswahl), auch wenn optisch dasselbe
+   Baukasten-Muster (Label + Select) wiederverwendet wird. */
+.sortierleiste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.sortierleiste label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.sortierleiste select {
+  padding: 0.4rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
 .film-aktionen {
   display: flex;
   flex-wrap: wrap;

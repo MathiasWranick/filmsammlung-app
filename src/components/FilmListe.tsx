@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FILTER_STANDARD, FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
 import { fotoLaden } from '../db/fotos'
 import Datensicherung from './Datensicherung'
@@ -7,6 +7,72 @@ import { AugeIcon, PapierkorbIcon, StiftIcon, TauschIcon } from './Icons'
 import VerleihOverlay from './VerleihOverlay'
 
 const FSK_STUFEN = ['0', '6', '12', '16', '18']
+
+// Sortierung der Liste (Ausbaustufe 3, Schritt 6). Bewusst getrennt vom
+// Filterzustand: Ein Filter grenzt ein, WELCHE Filme in der Ergebnismenge
+// landen, eine Sortierung bestimmt nur die REIHENFOLGE der bereits
+// gefilterten Treffer - beides hat daher einen eigenen Zustand und wird
+// unabhängig voneinander zurückgesetzt bzw. gespeichert.
+type Sortierfeld = 'titel' | 'erfasstAm' | 'jahr' | 'fsk'
+type Sortierrichtung = 'aufsteigend' | 'absteigend'
+interface Sortierzustand {
+  feld: Sortierfeld
+  richtung: Sortierrichtung
+}
+
+const SORTIERUNG_STANDARD: Sortierzustand = { feld: 'titel', richtung: 'aufsteigend' }
+const SORTIERUNG_SPEICHERSCHLUESSEL = 'filmsammlung-sortierung'
+
+// Liest eine zuvor gewählte Sortierung aus dem lokalen Browser-Speicher
+// (je Gerät, bewusst nicht über den OneDrive-Sync geteilt - reine
+// Anzeige-Einstellung, kein Sammlungsinhalt). In try/catch, weil manche
+// Browser (z. B. Safari im privaten Modus) den Zugriff auf localStorage
+// verweigern können - dann greift einfach der Standardwert.
+function sortierungAusSpeicherLesen(): Sortierzustand {
+  try {
+    const gespeichert = window.localStorage.getItem(SORTIERUNG_SPEICHERSCHLUESSEL)
+    if (!gespeichert) return SORTIERUNG_STANDARD
+    const geparst = JSON.parse(gespeichert)
+    const gueltigeFelder: Sortierfeld[] = ['titel', 'erfasstAm', 'jahr', 'fsk']
+    if (gueltigeFelder.includes(geparst.feld) && (geparst.richtung === 'aufsteigend' || geparst.richtung === 'absteigend')) {
+      return geparst
+    }
+  } catch {
+    // localStorage nicht verfügbar oder Inhalt beschädigt - Standardwert verwenden.
+  }
+  return SORTIERUNG_STANDARD
+}
+
+// Vergleicht zwei Filme anhand eines einzelnen Sortierfelds. Bei den
+// optionalen Feldern (Jahr, FSK) landen Filme ohne Wert bewusst immer am
+// Ende, unabhängig von der Richtung - "kein Wert vorhanden" soll nicht wie
+// "kleinster Wert" wirken. FSK wird als Zahl statt als Text verglichen
+// (sonst würde “6” als Text nach “18” einsortiert werden, obwohl es die
+// niedrigere Altersfreigabe ist).
+function optionalenWertVergleichen(a: number | undefined, b: number | undefined): number {
+  if (a === undefined && b === undefined) return 0
+  if (a === undefined) return 1
+  if (b === undefined) return -1
+  return a - b
+}
+
+function filmeVergleichen(a: Film, b: Film, feld: Sortierfeld): number {
+  switch (feld) {
+    case 'titel':
+      return a.titel.localeCompare(b.titel, 'de')
+    case 'erfasstAm':
+      // ISO-Zeitstempel lassen sich als Text korrekt chronologisch vergleichen.
+      return a.erfasstAm.localeCompare(b.erfasstAm)
+    case 'jahr':
+      return optionalenWertVergleichen(a.jahr, b.jahr)
+    case 'fsk':
+      return optionalenWertVergleichen(a.fsk ? Number(a.fsk) : undefined, b.fsk ? Number(b.fsk) : undefined)
+    default:
+      // Unerreichbar (Sortierfeld deckt alle vier Fälle oben ab) - nur zur
+      // Absicherung des Rückgabetyps, falls Sortierfeld künftig erweitert wird.
+      return 0
+  }
+}
 
 interface FilmKarteProps {
   film: Film
@@ -92,6 +158,7 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
   // Formular weiterhin dort lebt).
   const [anzeigeFilm, setAnzeigeFilm] = useState<Film | null>(null)
   const [verleihFilm, setVerleihFilm] = useState<Film | null>(null)
+  const [sortierung, setSortierung] = useState<Sortierzustand>(sortierungAusSpeicherLesen)
 
   function feldAendern<K extends keyof Filterzustand>(feld: K, wert: Filterzustand[K]) {
     onFilterAendern({ ...filter, [feld]: wert })
@@ -102,6 +169,37 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
   // (Version 1.29) etwas zu tun hätte, oder ob er deaktiviert bleibt, um
   // nicht so zu wirken, als würde ein Klick etwas verändern.
   const filterIstAktiv = JSON.stringify(filter) !== JSON.stringify(FILTER_STANDARD)
+
+  function sortierungAendern(aenderung: Partial<Sortierzustand>) {
+    const neueSortierung = { ...sortierung, ...aenderung }
+    setSortierung(neueSortierung)
+    try {
+      window.localStorage.setItem(SORTIERUNG_SPEICHERSCHLUESSEL, JSON.stringify(neueSortierung))
+    } catch {
+      // Persistenz ist nur "nice to have" - schlägt das Speichern fehl, bleibt
+      // die Auswahl für die laufende Sitzung trotzdem wirksam.
+    }
+  }
+
+  // Sortiert erst hier, nach Suche/Filter (die bereits gefilterte Liste
+  // "filme" kommt unverändert von App.tsx). Sekundär wird IMMER zusätzlich
+  // nach Erfassungsdatum aufsteigend sortiert, sobald das primäre
+  // Sortierfeld bei zwei Filmen gleich ist (z. B. gleicher Titel) - das
+  // stellt sicher, dass in der Reihenfolge erfasste Mehrteile (z. B.
+  // "Matrix 1"-"Matrix 4") auch bei einer Titel-Sortierung konsistent in
+  // Erfassungsreihenfolge bleiben, statt von einer sonst undefinierten
+  // Sortier-Reihenfolge bei Gleichstand abzuhängen (siehe Nutzerfeedback).
+  const sortierteFilme = useMemo(() => {
+    const kopie = [...filme]
+    kopie.sort((a, b) => {
+      let ergebnis = filmeVergleichen(a, b, sortierung.feld)
+      if (sortierung.richtung === 'absteigend') ergebnis = -ergebnis
+      if (ergebnis !== 0) return ergebnis
+      if (sortierung.feld === 'erfasstAm') return 0
+      return a.erfasstAm.localeCompare(b.erfasstAm)
+    })
+    return kopie
+  }, [filme, sortierung])
 
   return (
     <div>
@@ -170,6 +268,30 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
         </button>
       </div>
 
+      <div className="sortierleiste">
+        <label>
+          Sortieren nach
+          <select
+            value={sortierung.feld}
+            onChange={(ereignis) => sortierungAendern({ feld: ereignis.target.value as Sortierfeld })}
+          >
+            <option value="titel">Titel</option>
+            <option value="erfasstAm">Erfassungsdatum</option>
+            <option value="jahr">Erscheinungsjahr</option>
+            <option value="fsk">FSK-Freigabe</option>
+          </select>
+        </label>
+
+        <select
+          value={sortierung.richtung}
+          onChange={(ereignis) => sortierungAendern({ richtung: ereignis.target.value as Sortierrichtung })}
+          aria-label="Sortierrichtung"
+        >
+          <option value="aufsteigend">Aufsteigend</option>
+          <option value="absteigend">Absteigend</option>
+        </select>
+      </div>
+
       <Datensicherung />
 
       <p className="hint">
@@ -180,7 +302,7 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
         <p className="hint">{gesamtAnzahl === 0 ? 'Noch keine Filme erfasst.' : 'Keine Filme gefunden - Suche/Filter anpassen.'}</p>
       ) : (
         <ul className="film-liste">
-          {filme.map((film) => (
+          {sortierteFilme.map((film) => (
             <FilmKarte
               key={film.id}
               film={film}
