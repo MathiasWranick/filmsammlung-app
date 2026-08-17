@@ -12,7 +12,7 @@ import {
   type Format,
   type Typ,
 } from './db/filme'
-import { fotoSpeichern, fotoLoeschen } from './db/fotos'
+import { fotoSpeichern, fotoLoeschen, fotoMiniaturSpeichern, fotoMitMiniaturLoeschen } from './db/fotos'
 import { sicherungWiederherstellen, type WiederherstellungsErgebnis } from './backup/backup'
 import { anmelden, abmelden, angemeldetesKontoLaden } from './auth/msal'
 import { synchronisieren } from './sync/sync'
@@ -194,6 +194,11 @@ function App() {
   }) {
     const id = crypto.randomUUID()
     const fotoDateiname = await fotoSpeichern(id, 'vorderseite', eingabe.fotoVorderseite)
+    // Zusätzlich zum vollständigen Vorderseiten-Foto eine kleine
+    // Miniaturansicht anlegen (Version 1.36) - die wird dann in der
+    // Filmliste verwendet, statt dort ebenfalls das vollständige Foto zu
+    // laden (siehe Kommentar in fotoMiniaturSpeichern/bild/verkleinern.ts).
+    await fotoMiniaturSpeichern(fotoDateiname, eingabe.fotoVorderseite)
     const fotoRueckseiteDateiname = await fotoSpeichern(id, 'rueckseite', eingabe.fotoRueckseite)
     const neuerFilm = await filmAnlegen({
       id,
@@ -259,7 +264,8 @@ function App() {
 
     if (neueFotoVorderseite) {
       fotoDateiname = await fotoSpeichern(eingabe.id, 'vorderseite', neueFotoVorderseite)
-      if (bisherigerFilm?.fotoDateiname) await fotoLoeschen(bisherigerFilm.fotoDateiname)
+      await fotoMiniaturSpeichern(fotoDateiname, neueFotoVorderseite)
+      if (bisherigerFilm?.fotoDateiname) await fotoMitMiniaturLoeschen(bisherigerFilm.fotoDateiname)
     }
     if (neueFotoRueckseite) {
       fotoRueckseiteDateiname = await fotoSpeichern(eingabe.id, 'rueckseite', neueFotoRueckseite)

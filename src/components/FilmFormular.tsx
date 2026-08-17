@@ -3,6 +3,13 @@ import { FORMATE, TYPEN, type Film, type Format, type Typ } from '../db/filme'
 import { erkenneFilmdaten, ErkennungsFehler } from '../ki/bilderkennung'
 import { sucheEindeutig, sucheKandidaten, ladeDetails, type OmdbErgebnis, type OmdbKandidat, type OmdbFehler } from '../omdb/omdb'
 import { fotoLaden } from '../db/fotos'
+import { bildVerkleinern } from '../bild/verkleinern'
+
+// Lange Kante, auf die ein ausgewähltes Foto direkt nach der Auswahl
+// verkleinert wird (Version 1.36) - siehe Kommentar in bild/verkleinern.ts
+// zum Hintergrund. 1600px reicht für Bildschirmanzeige, KI-Erkennung und
+// OMDb-Abgleich mehr als aus.
+const FOTO_MAX_KANTE = 1600
 
 interface FilmFelder {
   titel: string
@@ -155,6 +162,19 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
       if (rueckseiteUrl) URL.revokeObjectURL(rueckseiteUrl)
     }
   }, [bearbeitenFilm])
+
+  // Verkleinert ein frisch ausgewähltes Foto (siehe FOTO_MAX_KANTE oben),
+  // bevor es im Formular-Zustand landet - und damit auch, bevor es
+  // gespeichert, für die KI-Erkennung verwendet oder synchronisiert wird.
+  // Beide Foto-Auswahlfelder (Vorderseite/Rückseite) nutzen dieselbe
+  // Funktion, nur mit unterschiedlichem State-Setter.
+  async function fotoAusgewaehlt(datei: File | null, setter: (datei: File | null) => void) {
+    if (!datei) {
+      setter(null)
+      return
+    }
+    setter(await bildVerkleinern(datei, FOTO_MAX_KANTE))
+  }
 
   // Die KI-Erkennung kostet (wenn auch nur minimal) Kontingent, deshalb
   // läuft sie nicht automatisch beim Foto-Auswählen, sondern erst auf
@@ -406,7 +426,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={(ereignis) => setFotoVorderseite(ereignis.target.files?.[0] ?? null)}
+              onChange={(ereignis) => fotoAusgewaehlt(ereignis.target.files?.[0] ?? null, setFotoVorderseite)}
             />
           </label>
 
@@ -416,7 +436,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={(ereignis) => setFotoRueckseite(ereignis.target.files?.[0] ?? null)}
+              onChange={(ereignis) => fotoAusgewaehlt(ereignis.target.files?.[0] ?? null, setFotoRueckseite)}
             />
           </label>
 
@@ -452,7 +472,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={(ereignis) => setFotoVorderseite(ereignis.target.files?.[0] ?? null)}
+              onChange={(ereignis) => fotoAusgewaehlt(ereignis.target.files?.[0] ?? null, setFotoVorderseite)}
             />
           </label>
 
@@ -474,7 +494,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={(ereignis) => setFotoRueckseite(ereignis.target.files?.[0] ?? null)}
+              onChange={(ereignis) => fotoAusgewaehlt(ereignis.target.files?.[0] ?? null, setFotoRueckseite)}
             />
           </label>
         </>

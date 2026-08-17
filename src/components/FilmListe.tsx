@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FILTER_STANDARD, FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
-import { fotoLaden } from '../db/fotos'
+import { fotoMiniaturLaden } from '../db/fotos'
 import Abschnitt from './Abschnitt'
 import FilmAnzeige from './FilmAnzeige'
 import { AugeIcon, PapierkorbIcon, StiftIcon, TauschIcon } from './Icons'
@@ -98,7 +98,11 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: 
   useEffect(() => {
     let eigeneObjektUrl: string | null = null
 
-    fotoLaden(film.fotoDateiname).then((url) => {
+    // Verwendet bewusst die kleine Miniaturansicht statt des vollständigen
+    // Fotos (Version 1.36) - bei einer größeren Sammlung summiert sich der
+    // Arbeitsspeicher für 30+ gleichzeitig geladene Vorschaubilder sonst
+    // spürbar, siehe Architekturkonzept, Changelog 1.36.
+    fotoMiniaturLaden(film.fotoDateiname).then((url) => {
       eigeneObjektUrl = url
       setFotoUrl(url)
     })

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 
 interface Props {
   titel: string
@@ -17,39 +17,19 @@ interface Props {
 // HTML-<dialog>-Element, um volle Kontrolle über Aussehen und Verhalten zu
 // behalten, ohne Browser-Eigenheiten einzelner <dialog>-Implementierungen
 // berücksichtigen zu müssen.
+//
+// Version 1.35 hatte hier versuchsweise einen Schutz gegen ungewolltes
+// Schließen nach der Foto-Aufnahme eingebaut (Vermutung: ein vom Browser
+// nachgeholter Klick nach Rückkehr aus der Kamera-App trifft den
+// Hintergrund). Der eigentliche Fund in 1.36 war ein anderer: Android kann
+// bei Speicherdruck (u. a. durch sehr große, z. B. gezoomte Kamerafotos) den
+// im Hintergrund liegenden Browser-Tab beenden und beim Zurückkehren neu
+// laden - dabei geht der komplette Programmzustand verloren, ein
+// Klick-Schutz in diesem Bauteil kann das grundsätzlich nicht abfangen. Die
+// eigentliche Abhilfe (Fotos vor der Weiterverwendung verkleinern) sitzt
+// jetzt in bild/verkleinern.ts; der 1.35-Versuch wurde daher wieder
+// entfernt, um das Bauteil einfach zu halten.
 function Overlay({ titel, onSchliessen, footer, children }: Props) {
-  // Schutz gegen ungewolltes Schließen nach der Foto-Aufnahme (Version
-  // 1.35, Nutzer-Feedback: Formular schloss sich meist von selbst, sobald
-  // das aufgenommene Foto der Vorderseite mit "OK" bestätigt wurde). Ursache
-  // vermutlich ein bekanntes Mobile-Browser-Verhalten: Kehrt die Seite aus
-  // der nativen Kamera-App zurück, kann sich kurzzeitig die tatsächlich
-  // sichtbare Fensterhöhe verschieben (z. B. weil die Adressleiste
-  // ein-/ausblendet) - ein vom Browser dabei nachgeholter Klick an der
-  // zuletzt berührten Bildschirmposition trifft dadurch statt des
-  // Datei-Eingabefelds den nun freiliegenden abgedunkelten Hintergrund und
-  // schließt das Overlay ungewollt. Da der auslösende Moment zuverlässig
-  // erkennbar ist (die Seite wird nach einem Ausflug in eine andere App wie
-  // die Kamera wieder sichtbar), wird ein Klick auf den Hintergrund kurz
-  // nach diesem Wiedersichtbarwerden ignoriert. Ein bewusster Klick des
-  // Nutzers auf den Hintergrund funktioniert danach ganz normal weiter.
-  const wiederSichtbarZeitstempelRef = useRef(0)
-
-  useEffect(() => {
-    function beiSichtbarkeitswechsel() {
-      if (document.visibilityState === 'visible') {
-        wiederSichtbarZeitstempelRef.current = Date.now()
-      }
-    }
-    document.addEventListener('visibilitychange', beiSichtbarkeitswechsel)
-    return () => document.removeEventListener('visibilitychange', beiSichtbarkeitswechsel)
-  }, [])
-
-  function hintergrundKlick() {
-    const millisekundenSeitWiedersichtbar = Date.now() - wiederSichtbarZeitstempelRef.current
-    if (millisekundenSeitWiedersichtbar < 1000) return
-    onSchliessen()
-  }
-
   useEffect(() => {
     function beiEscape(ereignis: KeyboardEvent) {
       if (ereignis.key === 'Escape') onSchliessen()
@@ -69,7 +49,7 @@ function Overlay({ titel, onSchliessen, footer, children }: Props) {
   }, [onSchliessen])
 
   return (
-    <div className="overlay-hintergrund" onClick={hintergrundKlick}>
+    <div className="overlay-hintergrund" onClick={onSchliessen}>
       {/* stopPropagation verhindert, dass ein Klick in den Inhalt hinein
           (z. B. auf ein Eingabefeld) über den Hintergrund-Klick-Handler
           versehentlich das Overlay schließt. */}

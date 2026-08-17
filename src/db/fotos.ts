@@ -2,7 +2,14 @@
 // als eigene Dateien im privaten Browser-Speicher (OPFS). Das hält die
 // Datenbank klein und schnell, auch bei einer großen Sammlung.
 
+import { bildVerkleinern } from '../bild/verkleinern'
+
 export type FotoSeite = 'vorderseite' | 'rueckseite'
+
+// Lange Kante der kleinen Miniaturansicht (siehe fotoMiniaturSpeichern
+// unten) - bewusst deutlich kleiner als die reguläre Anzeigegröße, weil sie
+// ausschließlich für die kompakte Kachel in der Filmliste gedacht ist.
+const MINIATUR_MAX_KANTE = 400
 
 async function fotosOrdner(): Promise<FileSystemDirectoryHandle> {
   const wurzel = await navigator.storage.getDirectory()
@@ -52,6 +59,54 @@ export async function fotoLoeschen(dateiname: string): Promise<void> {
   } catch {
     // Datei existierte nicht (mehr) - nichts zu tun.
   }
+}
+
+// Leitet aus dem Dateinamen des vollständigen Fotos den Dateinamen der
+// zugehörigen Miniaturansicht ab (Version 1.36, siehe fotoMiniaturSpeichern
+// unten). Bewusst ohne eigenes Feld in der Datenbank/im Sync-Datensatz -
+// der Name lässt sich aus dem ohnehin vorhandenen fotoDateiname ableiten,
+// das spart eine Datenbankänderung samt Migration.
+export function fotoMiniaturDateiname(fotoDateiname: string): string {
+  return fotoDateiname.replace(/(\.[^./]+)$/, '-miniatur$1')
+}
+
+// Erzeugt zusätzlich zum vollständigen Foto eine kleine Miniaturansicht und
+// speichert sie unter dem davon abgeleiteten Dateinamen. Wird nur für das
+// Vorderseiten-Foto aufgerufen, da nur dieses als Kachel in der Filmliste
+// angezeigt wird (siehe FilmListe.tsx) - für die Rückseite und die
+// Detailansicht/Bearbeitung wird weiterhin das vollständige Foto geladen.
+export async function fotoMiniaturSpeichern(fotoDateiname: string, datei: File): Promise<void> {
+  const miniatur = await bildVerkleinern(datei, MINIATUR_MAX_KANTE, 0.75)
+  const ordner = await fotosOrdner()
+  const dateiHandle = await ordner.getFileHandle(fotoMiniaturDateiname(fotoDateiname), { create: true })
+  const schreibStrom = await dateiHandle.createWritable()
+  await schreibStrom.write(miniatur)
+  await schreibStrom.close()
+}
+
+// Lädt bevorzugt die kleine Miniaturansicht eines Fotos (für die Kachel in
+// der Filmliste). Existiert sie (noch) nicht - z. B. bei Fotos aus einer
+// Version vor 1.36, oder weil sie per OneDrive-Sync von einem anderen Gerät
+// übernommen wurde, das die Miniatur nicht mit hochgeladen hat (siehe
+// Architekturkonzept, Changelog 1.36) -, wird automatisch auf das
+// vollständige Foto ausgewichen. Damit funktioniert die Filmliste in jedem
+// Fall korrekt, auch wenn die Miniatur (noch) fehlt.
+export async function fotoMiniaturLaden(fotoDateiname: string): Promise<string> {
+  try {
+    return await fotoLaden(fotoMiniaturDateiname(fotoDateiname))
+  } catch {
+    return await fotoLaden(fotoDateiname)
+  }
+}
+
+// Löscht ein vollständiges Foto zusammen mit seiner Miniaturansicht (falls
+// vorhanden) - z. B. wenn beim Bearbeiten das Vorderseiten-Foto durch ein
+// neues ersetzt wird. fotoLoeschen ist bereits tolerant gegenüber fehlenden
+// Dateien, ein Aufruf für eine (noch) nicht existierende Miniatur ist daher
+// unproblematisch.
+export async function fotoMitMiniaturLoeschen(fotoDateiname: string): Promise<void> {
+  await fotoLoeschen(fotoDateiname)
+  await fotoLoeschen(fotoMiniaturDateiname(fotoDateiname))
 }
 
 // Lädt ein gespeichertes Foto als rohe Datei (nicht als anzeigbare Adresse
