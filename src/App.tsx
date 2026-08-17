@@ -17,8 +17,8 @@ import { synchronisieren } from './sync/sync'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 import KontoLeiste from './components/KontoLeiste'
-import Datensicherung from './components/Datensicherung'
 import Overlay from './components/Overlay'
+import { BUILD_VERSION } from './version'
 
 type LadeStatus = 'laedt' | 'bereit' | 'fehler'
 
@@ -337,7 +337,9 @@ function App() {
 
   return (
     <div className="page">
-      <h1>Filmsammlung</h1>
+      <h1>
+        Filmsammlung <span className="build-version">Build {BUILD_VERSION}</span>
+      </h1>
 
       <KontoLeiste
         konto={konto}
@@ -383,8 +385,6 @@ function App() {
               />
             </Overlay>
           )}
-
-          <Datensicherung />
         </>
       )}
     </div>

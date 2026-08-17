@@ -344,6 +344,21 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
         setErkennungsHinweis(null)
         setOmdbHinweis(null)
         setOmdbKandidaten(null)
+        // Formular bleibt nach dem Anlegen bewusst offen (siehe Kommentar in
+        // App.tsx - praktisch für die Box-Erfassung, wo oft mehrere Filme
+        // direkt hintereinander eingegeben werden). Scrollt dafür zurück an
+        // den Anfang des Overlays, damit sofort das nächste Foto ausgewählt
+        // werden kann, ohne erst manuell hochscrollen zu müssen (Nutzer-
+        // Feedback nach dem Test von Schritt 3). Bewusst über die direkte
+        // scrollTop-Zuweisung statt über scrollTo({behavior:'smooth'}) - auf
+        // dem Mobile-Client blieb der Sprung damit aus (die Options-Variante
+        // von scrollTo() auf verschachtelten Elementen wird nicht von allen
+        // mobilen Browsern zuverlässig unterstützt). scrollTop=0 funktioniert
+        // dagegen überall zuverlässig; die sanfte Animation kommt jetzt
+        // stattdessen über die CSS-Eigenschaft scroll-behavior auf
+        // .overlay-body (siehe index.css), was breiter unterstützt wird.
+        const overlayBody = formElement.closest('.overlay-body')
+        if (overlayBody) overlayBody.scrollTop = 0
       }
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)

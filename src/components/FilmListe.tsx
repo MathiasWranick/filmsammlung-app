@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
 import { fotoLaden } from '../db/fotos'
+import Datensicherung from './Datensicherung'
 import FilmAnzeige from './FilmAnzeige'
 import VerleihOverlay from './VerleihOverlay'
 
@@ -157,6 +158,8 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
           OMDb-Daten unvollständig
         </label>
       </div>
+
+      <Datensicherung />
 
       <p className="hint">
         {filme.length} von {gesamtAnzahl} Filmen angezeigt
