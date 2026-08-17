@@ -168,6 +168,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
       const ergebnis = await erkenneFilmdaten(fotoVorderseite, fotoRueckseite)
 
       if (ergebnis.titel && !titel.trim()) setTitel(ergebnis.titel)
+      if (ergebnis.originaltitel && !originaltitel.trim()) setOriginaltitel(ergebnis.originaltitel)
       if (ergebnis.format && FORMATE.includes(ergebnis.format as Format)) {
         setFormat(ergebnis.format as Format)
       }
@@ -208,11 +209,20 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
     if (ergebnis.laufzeitMinuten && !laufzeit.trim()) setLaufzeit(String(ergebnis.laufzeitMinuten))
   }
 
-  // Startet die OMDb-Ergänzung anhand des bereits eingegebenen Titels.
-  // Findet OMDb keinen eindeutigen Treffer, wird stattdessen eine
+  // Startet die OMDb-Ergänzung. Liegt bereits ein Originaltitel vor (seit
+  // Version 1.34 von der KI-Erkennung vorgeschlagen, oder wie schon zuvor
+  // manuell eingetragen), wird ZUERST damit gesucht, erst danach mit dem
+  // deutschen Titel - und zwar sowohl bei der eindeutigen Suche als auch bei
+  // der Trefferliste. Grund: OMDb baut auf der IMDb-Datenbank auf, die
+  // primär nach dem Originaltitel geführt wird - ein deutscher Verleihtitel
+  // wie "Stirb langsam" liefert bei der eindeutigen Suche oft schon bei
+  // bekannten Filmen keinen Treffer, weil der Film bei OMDb "Die Hard"
+  // heißt. Sind beide Titel identisch (oder gibt es keinen separaten
+  // Originaltitel), wird nur einmal gesucht. Findet OMDb bei keinem der
+  // beiden Titel einen eindeutigen Treffer, wird stattdessen eine
   // Trefferliste zur Auswahl angezeigt (siehe omdbKandidaten). Auch im
-  // Bearbeitungsmodus nutzbar, z. B. um es mit dem englischen Originaltitel
-  // erneut zu versuchen, wenn OMDb unter dem deutschen Titel nichts findet.
+  // Bearbeitungsmodus nutzbar, z. B. nach manueller Korrektur des
+  // Originaltitels erneut versuchen.
   async function omdbStarten() {
     if (!titel.trim()) return
 
@@ -222,17 +232,35 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
     // Bei einer Serie wird OMDb gezielt auf Serien eingegrenzt (statt auch
     // gleichnamige Filme/Episoden zu liefern) - siehe omdb.ts.
     const omdbTyp = typ === 'Serie' ? 'series' : undefined
+    const getrimmterOriginaltitel = originaltitel.trim()
+    const getrimmterTitel = titel.trim()
+    const sucheReihenfolge =
+      getrimmterOriginaltitel && getrimmterOriginaltitel !== getrimmterTitel
+        ? [getrimmterOriginaltitel, getrimmterTitel]
+        : [getrimmterTitel]
+
     try {
-      const treffer = await sucheEindeutig(titel, omdbTyp)
+      let treffer: OmdbErgebnis | null = null
+      for (const sucheTitel of sucheReihenfolge) {
+        treffer = await sucheEindeutig(sucheTitel, omdbTyp)
+        if (treffer) break
+      }
+
       if (treffer) {
         omdbErgebnisUebernehmen(treffer)
+        return
+      }
+
+      let kandidaten: OmdbKandidat[] = []
+      for (const sucheTitel of sucheReihenfolge) {
+        kandidaten = await sucheKandidaten(sucheTitel, omdbTyp)
+        if (kandidaten.length > 0) break
+      }
+
+      if (kandidaten.length === 0) {
+        setOmdbHinweis('Kein Treffer bei OMDb gefunden. Die Daten können manuell eingegeben werden.')
       } else {
-        const kandidaten = await sucheKandidaten(titel, omdbTyp)
-        if (kandidaten.length === 0) {
-          setOmdbHinweis('Kein Treffer bei OMDb gefunden. Die Daten können manuell eingegeben werden.')
-        } else {
-          setOmdbKandidaten(kandidaten)
-        }
+        setOmdbKandidaten(kandidaten)
       }
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)

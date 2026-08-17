@@ -20,6 +20,7 @@ const GEMINI_MODELL = 'gemini-3.5-flash'
 
 export interface KiErkennungsErgebnis {
   titel?: string
+  originaltitel?: string
   format?: string
   typ?: string
   staffel?: string
@@ -52,6 +53,7 @@ export class ErkennungsFehler extends Error {
 const PROMPT = `Du bekommst ein oder zwei Fotos einer Film-Hülle (Vorderseite und/oder Rückseite einer DVD/Blu-ray-Hülle). Lies beide Fotos gründlich und vollständig, auch kleiner gedruckten Text (Besetzungsliste, technische Angaben, Klappentext). Ermittle daraus folgende Angaben zum Film und antworte ausschließlich als JSON-Objekt mit genau diesen Feldern. Versuche aktiv, jedes Feld auszufüllen, wenn die Information irgendwo auf einem der Fotos zu finden ist - nutze nicht vorschnell einen leeren Wert.
 
 - titel: Der deutsche Filmtitel. Steht auf der Hülle meist nur der englische Originaltitel, ergänze in dem Fall den in Deutschland gebräuchlichen deutschen Verleihtitel anhand deines Filmwissens. Steht bereits ein deutscher Titel groß auf dem Cover, nimm genau diesen.
+- originaltitel: Der englische bzw. fremdsprachige Originaltitel des Films, falls er vom deutschen Titel oben abweicht. Steht er im Kleingedruckten auf der Hülle (z. B. bei Copyright-Angaben), lies ihn dort direkt ab. Steht er nicht lesbar auf der Hülle, nutze dein Filmwissen, mit dem du oben ja bereits den deutschen Verleihtitel ermitteln musstest. Ist der deutsche Titel bereits der Originaltitel (z. B. bei vielen deutschen Produktionen) oder bist du dir nicht sicher, leeren String zurückgeben - nichts raten oder erfinden.
 - format: Das Medienformat, erkennbar an Logo und/oder Aufdruck auf der Hülle (z. B. "DVD"-Logo, "Blu-ray Disc"-Logo, "4K Ultra HD"/"4K UHD"-Logo). Antworte mit genau einem der folgenden Werte: "DVD", "Blu-ray", "4K UHD" oder "Sonstiges".
 - typ: Ob es sich um einen einzelnen Film oder eine Fernsehserie/TV-Serie handelt, erkennbar an Aufdrucken wie "Die komplette Serie", "Staffel X", einer Episodenliste auf der Rückseite oder am dir bekannten Filmwissen zum Titel. Antworte mit genau einem der folgenden Werte: "Film" oder "Serie". Im Zweifel "Film" wählen.
 - staffel: Nur falls typ "Serie" ist und auf der Hülle eine Staffel-Angabe vermerkt ist (z. B. "Staffel 1", "Staffel 1-3", "Season 2"), gib genau diese Angabe wieder. Bei einem Film oder wenn keine Staffel-Angabe erkennbar ist, leeren String zurückgeben.
@@ -69,6 +71,7 @@ const ANTWORT_SCHEMA = {
   type: 'OBJECT',
   properties: {
     titel: { type: 'STRING' },
+    originaltitel: { type: 'STRING' },
     format: { type: 'STRING', enum: ['DVD', 'Blu-ray', '4K UHD', 'Sonstiges'] },
     typ: { type: 'STRING', enum: ['Film', 'Serie'] },
     staffel: { type: 'STRING' },
@@ -87,6 +90,7 @@ const ANTWORT_SCHEMA = {
   // Titel erkannt wurde.
   required: [
     'titel',
+    'originaltitel',
     'format',
     'typ',
     'staffel',
