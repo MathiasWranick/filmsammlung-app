@@ -3,6 +3,7 @@ import { FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../d
 import { fotoLaden } from '../db/fotos'
 import Datensicherung from './Datensicherung'
 import FilmAnzeige from './FilmAnzeige'
+import { AugeIcon, PapierkorbIcon, StiftIcon, TauschIcon } from './Icons'
 import VerleihOverlay from './VerleihOverlay'
 
 const FSK_STUFEN = ['0', '6', '12', '16', '18']
@@ -56,17 +57,17 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: 
         </div>
 
         <div className="film-aktionen">
-          <button type="button" onClick={() => onAnzeigen(film)}>
-            Anzeigen
+          <button type="button" onClick={() => onAnzeigen(film)} title="Anzeigen" aria-label="Anzeigen">
+            <AugeIcon />
           </button>
-          <button type="button" onClick={() => onBearbeiten(film)}>
-            Bearbeiten
+          <button type="button" onClick={() => onBearbeiten(film)} title="Bearbeiten" aria-label="Bearbeiten">
+            <StiftIcon />
           </button>
-          <button type="button" onClick={() => onVerleihen(film)}>
-            Verleihen
+          <button type="button" onClick={() => onVerleihen(film)} title="Verleihen" aria-label="Verleihen">
+            <TauschIcon />
           </button>
-          <button type="button" onClick={loeschen}>
-            Löschen
+          <button type="button" onClick={loeschen} className="loeschen" title="Löschen" aria-label="Löschen">
+            <PapierkorbIcon />
           </button>
         </div>
       </div>

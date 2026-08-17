@@ -167,14 +167,37 @@ body {
 .film-aktionen {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   margin-top: 0.5rem;
 }
 
+/* Kompakte Icon-Buttons statt Textbuttons (Ausbaustufe 3, Schritt 4) - vier
+   davon nebeneinander passen dadurch komfortabel auch auf schmale
+   Handybildschirme, ganz ohne auf das Umbrechen (flex-wrap oben) angewiesen
+   zu sein. title/aria-label sorgen dafür, dass trotz reinem Icon weiterhin
+   erkennbar/vorlesbar bleibt, was der Button tut. */
 .film-aktionen button {
-  padding: 0.3rem 0.6rem;
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+  background: canvas;
+  color: canvastext;
   cursor: pointer;
+}
+
+.film-aktionen button svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.film-aktionen button.loeschen {
+  color: #b91c1c;
+  border-color: #fca5a5;
 }
 
 /* Overlay-Bauteil (Ausbaustufe 3) */
