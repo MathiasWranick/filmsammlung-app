@@ -175,3 +175,109 @@ body {
   font-size: 0.85rem;
   cursor: pointer;
 }
+
+/* Overlay-Bauteil (Ausbaustufe 3) */
+
+.overlay-hintergrund {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.overlay-inhalt {
+  background: canvas;
+  color: canvastext;
+  border-radius: 0.5rem;
+  max-width: 32rem;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.overlay-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1rem 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.overlay-kopf h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.overlay-schliessen {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  color: #6b7280;
+}
+
+.overlay-body {
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.overlay-fuss {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .overlay-hintergrund {
+    padding: 0;
+  }
+
+  .overlay-inhalt {
+    max-width: 100%;
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+  }
+}
+
+/* Anzeige-Overlay (Ausbaustufe 3) */
+
+.anzeige-fotos {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.anzeige-foto {
+  max-width: 45%;
+  max-height: 12rem;
+  object-fit: contain;
+  border-radius: 0.25rem;
+}
+
+.anzeige-felder {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+}
+
+.anzeige-felder dt {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.anzeige-felder dd {
+  margin: 0;
+}

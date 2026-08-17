@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
 import { FORMATE, TYPEN, type Film, type Filterzustand, type Format } from '../db/filme'
 import { fotoLaden } from '../db/fotos'
+import FilmAnzeige from './FilmAnzeige'
 
 const FSK_STUFEN = ['0', '6', '12', '16', '18']
 
 interface FilmKarteProps {
   film: Film
+  onAnzeigen: (film: Film) => void
   onBearbeiten: (film: Film) => void
   onLoeschen: (id: string) => void
   onVerleihStatusAendern: (id: string, ausgeliehenAn: string | undefined, ausgeliehenAm: string | undefined) => void
 }
 
-function FilmKarte({ film, onBearbeiten, onLoeschen, onVerleihStatusAendern }: FilmKarteProps) {
+function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihStatusAendern }: FilmKarteProps) {
   const [fotoUrl, setFotoUrl] = useState<string | null>(null)
   const [ausgeliehenAnEingabe, setAusgeliehenAnEingabe] = useState(film.ausgeliehenAn ?? '')
   const [ausgeliehenAmEingabe, setAusgeliehenAmEingabe] = useState(film.ausgeliehenAm ?? '')
@@ -98,6 +100,9 @@ function FilmKarte({ film, onBearbeiten, onLoeschen, onVerleihStatusAendern }: F
         </div>
 
         <div className="film-aktionen">
+          <button type="button" onClick={() => onAnzeigen(film)}>
+            Anzeigen
+          </button>
           <button type="button" onClick={() => onBearbeiten(film)}>
             Bearbeiten
           </button>
@@ -121,6 +126,12 @@ interface Props {
 }
 
 function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten, onLoeschen, onVerleihStatusAendern }: Props) {
+  // Welcher Film gerade im Anzeige-Overlay offen ist - rein lokaler
+  // Anzeigezustand der Liste, muss nicht bis nach App.tsx hochgereicht
+  // werden (im Unterschied zu bearbeitenFilm, das dort bleibt, weil das
+  // Formular weiterhin dort lebt).
+  const [anzeigeFilm, setAnzeigeFilm] = useState<Film | null>(null)
+
   function feldAendern<K extends keyof Filterzustand>(feld: K, wert: Filterzustand[K]) {
     onFilterAendern({ ...filter, [feld]: wert })
   }
@@ -200,12 +211,17 @@ function FilmListe({ filme, gesamtAnzahl, filter, onFilterAendern, onBearbeiten,
             <FilmKarte
               key={film.id}
               film={film}
+              onAnzeigen={setAnzeigeFilm}
               onBearbeiten={onBearbeiten}
               onLoeschen={onLoeschen}
               onVerleihStatusAendern={onVerleihStatusAendern}
             />
           ))}
         </ul>
+      )}
+
+      {anzeigeFilm && (
+        <FilmAnzeige film={anzeigeFilm} onSchliessen={() => setAnzeigeFilm(null)} onBearbeiten={onBearbeiten} />
       )}
     </div>
   )
