@@ -16,6 +16,7 @@ import { synchronisieren } from './sync/sync'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 import KontoLeiste from './components/KontoLeiste'
+import Datensicherung from './components/Datensicherung'
 
 type LadeStatus = 'laedt' | 'bereit' | 'fehler'
 
@@ -346,6 +347,7 @@ function App() {
             onLoeschen={filmLoeschenHandler}
             onVerleihStatusAendern={verleihStatusAendernHandler}
           />
+          <Datensicherung />
         </>
       )}
     </div>
