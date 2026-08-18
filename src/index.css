@@ -130,6 +130,30 @@ body {
   font-weight: 700;
 }
 
+.abschnitt-statuspunkt {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.abschnitt-statuspunkt.gruen {
+  background: #22c55e;
+}
+
+.abschnitt-statuspunkt.gelb {
+  background: #eab308;
+}
+
+.abschnitt-statuspunkt.grau {
+  background: #9ca3af;
+}
+
+.abschnitt-statuspunkt.rot {
+  background: #ef4444;
+}
+
 .abschnitt-pfeil {
   font-size: 0.75rem;
   color: #6b7280;

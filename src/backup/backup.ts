@@ -33,6 +33,7 @@ const CSV_SPALTEN: { titel: string; wert: (film: Film) => string }[] = [
   { titel: 'Produktionsland', wert: (f) => f.produktionsland ?? '' },
   { titel: 'Sprache', wert: (f) => f.sprache ?? '' },
   { titel: 'IMDb-Bewertung', wert: (f) => f.imdbBewertung ?? '' },
+  { titel: 'Tags', wert: (f) => f.tags ?? '' },
   { titel: 'Barcode', wert: (f) => f.barcode ?? '' },
   { titel: 'Ausgeliehen an', wert: (f) => f.ausgeliehenAn ?? '' },
   { titel: 'Ausgeliehen am', wert: (f) => f.ausgeliehenAm ?? '' },

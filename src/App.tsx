@@ -16,7 +16,7 @@ import { fotoSpeichern, fotoLoeschen, fotoMiniaturSpeichern, fotoMitMiniaturLoes
 import { sicherungWiederherstellen, type WiederherstellungsErgebnis } from './backup/backup'
 import { anmelden, abmelden, angemeldetesKontoLaden } from './auth/msal'
 import { synchronisieren } from './sync/sync'
-import Abschnitt from './components/Abschnitt'
+import Abschnitt, { type StatusPunktFarbe } from './components/Abschnitt'
 import Datensicherung from './components/Datensicherung'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
@@ -191,6 +191,7 @@ function App() {
     produktionsland?: string
     sprache?: string
     imdbBewertung?: string
+    tags?: string
   }) {
     const id = crypto.randomUUID()
     const fotoDateiname = await fotoSpeichern(id, 'vorderseite', eingabe.fotoVorderseite)
@@ -221,6 +222,7 @@ function App() {
       produktionsland: eingabe.produktionsland,
       sprache: eingabe.sprache,
       imdbBewertung: eingabe.imdbBewertung,
+      tags: eingabe.tags,
     })
     setFilme((vorherigeFilme) => [neuerFilm, ...vorherigeFilme])
     // Nicht abgewartet (kein "await") - das Speichern soll nicht auf das
@@ -248,6 +250,7 @@ function App() {
     produktionsland?: string
     sprache?: string
     imdbBewertung?: string
+    tags?: string
     neueFotoVorderseite?: File
     neueFotoRueckseite?: File
   }) {
@@ -335,6 +338,15 @@ function App() {
   const gefilterteFilme = useMemo(() => {
     const sucheKleingeschrieben = filter.suche.trim().toLowerCase()
     const genreKleingeschrieben = filter.genre.trim().toLowerCase()
+    // Mehrere, durch Komma getrennte Suchbegriffe müssen ALLE im Tags-Feld
+    // des Films vorkommen (UND-Verknüpfung) - z. B. "Weihnachtsfilm, 2023"
+    // findet nur Filme, die beide Begriffe enthalten. Einzelne Begriffe
+    // werden per einfachem Substring-Vergleich gesucht (wie beim Genre-
+    // Filter), das findet Tags unabhängig von ihrer Position im Feld.
+    const tagsBegriffe = filter.tags
+      .split(',')
+      .map((begriff) => begriff.trim().toLowerCase())
+      .filter((begriff) => begriff.length > 0)
 
     return filme.filter((film) => {
       if (sucheKleingeschrieben && !film.titel.toLowerCase().includes(sucheKleingeschrieben)) return false
@@ -348,9 +360,38 @@ function App() {
       // damit ein zuverlässiger Hinweis auf eine noch fehlende/erfolglose
       // OMDb-Ergänzung, ganz ohne eigenes Status-Feld (siehe Filterzustand).
       if (filter.omdbUnvollstaendig && film.genre) return false
+      if (tagsBegriffe.length > 0) {
+        const filmTagsKleingeschrieben = film.tags?.toLowerCase() ?? ''
+        if (!tagsBegriffe.every((begriff) => filmTagsKleingeschrieben.includes(begriff))) return false
+      }
       return true
     })
   }, [filme, filter])
+
+  // Sync-Status-Punkt neben "Verwaltung" (Version 1.37) - macht den
+  // Sync-/Anmeldestatus schon im eingeklappten Zustand auf einen Blick
+  // sichtbar, ohne dass man dafür extra aufklappen muss (deckt sich mit dem,
+  // was KontoLeiste im aufgeklappten Zustand als Text zeigt). Vor Abschluss
+  // der anfänglichen Anmeldeprüfung bewusst noch kein Punkt (undefined),
+  // um kein falsches "grau" aufblitzen zu lassen, bevor überhaupt bekannt
+  // ist, ob ein Konto angemeldet ist.
+  let syncStatusPunkt: StatusPunktFarbe | undefined
+  let syncStatusText: string | undefined
+  if (kontoPruefungAbgeschlossen) {
+    if (!konto) {
+      syncStatusPunkt = 'grau'
+      syncStatusText = 'Nicht angemeldet'
+    } else if (syncLaeuft) {
+      syncStatusPunkt = 'gelb'
+      syncStatusText = 'Synchronisation läuft …'
+    } else if (kontoFehler) {
+      syncStatusPunkt = 'rot'
+      syncStatusText = 'Letzte Synchronisation fehlgeschlagen'
+    } else {
+      syncStatusPunkt = 'gruen'
+      syncStatusText = 'Synchronisiert'
+    }
+  }
 
   return (
     <div className="page">
@@ -366,7 +407,7 @@ function App() {
           beiden Bauteile bleiben dabei unverändert eigenständig - nur die
           Kopfzeile mit Ein-/Ausklappen kommt von außen (Abschnitt.tsx)
           dazu, getrennt durch eine einfache Trennlinie. */}
-      <Abschnitt titel="Verwaltung" symbol="⚙">
+      <Abschnitt titel="Verwaltung" symbol="⚙" statusPunkt={syncStatusPunkt} statusText={syncStatusText}>
         <KontoLeiste
           konto={konto}
           pruefungAbgeschlossen={kontoPruefungAbgeschlossen}

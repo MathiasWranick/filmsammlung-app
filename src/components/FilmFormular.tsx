@@ -29,6 +29,7 @@ interface FilmFelder {
   produktionsland?: string
   sprache?: string
   imdbBewertung?: string
+  tags?: string
 }
 
 interface Props {
@@ -92,6 +93,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
   const [produktionsland, setProduktionsland] = useState('')
   const [sprache, setSprache] = useState('')
   const [imdbBewertung, setImdbBewertung] = useState('')
+  const [tags, setTags] = useState('')
 
   const [aktuelleFotoVorderseiteUrl, setAktuelleFotoVorderseiteUrl] = useState<string | null>(null)
   const [aktuelleFotoRueckseiteUrl, setAktuelleFotoRueckseiteUrl] = useState<string | null>(null)
@@ -127,6 +129,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
     setProduktionsland(bearbeitenFilm?.produktionsland ?? '')
     setSprache(bearbeitenFilm?.sprache ?? '')
     setImdbBewertung(bearbeitenFilm?.imdbBewertung ?? '')
+    setTags(bearbeitenFilm?.tags ?? '')
     setErkennungsHinweis(null)
     setOmdbHinweis(null)
     setOmdbKandidaten(null)
@@ -352,6 +355,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
       produktionsland: produktionsland.trim() || undefined,
       sprache: sprache.trim() || undefined,
       imdbBewertung: imdbBewertung.trim() || undefined,
+      tags: tags.trim() || undefined,
     }
 
     setWirdGespeichert(true)
@@ -389,6 +393,7 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
         setProduktionsland('')
         setSprache('')
         setImdbBewertung('')
+        setTags('')
         setErkennungsHinweis(null)
         setOmdbHinweis(null)
         setOmdbKandidaten(null)
@@ -666,6 +671,16 @@ function FilmFormular({ bearbeitenFilm, onHinzufuegen, onAktualisieren, onAbbrec
           value={imdbBewertung}
           onChange={(ereignis) => setImdbBewertung(ereignis.target.value)}
           placeholder="z. B. 8.2"
+        />
+      </label>
+
+      <label>
+        Tags
+        <input
+          type="text"
+          value={tags}
+          onChange={(ereignis) => setTags(ereignis.target.value)}
+          placeholder="z. B. Lieblingsfilm, Weihnachtsfilm (durch Komma getrennt)"
         />
       </label>
 

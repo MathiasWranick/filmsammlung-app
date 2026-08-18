@@ -269,6 +269,13 @@ function FilmListe({
             placeholder="Genre enthält …"
           />
 
+          <input
+            type="text"
+            value={filter.tags}
+            onChange={(ereignis) => feldAendern('tags', ereignis.target.value)}
+            placeholder="Tags enthält … (mehrere durch Komma getrennt = UND)"
+          />
+
           <select
             value={filter.ausgeliehenStatus}
             onChange={(ereignis) => feldAendern('ausgeliehenStatus', ereignis.target.value as Filterzustand['ausgeliehenStatus'])}

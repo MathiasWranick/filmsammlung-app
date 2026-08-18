@@ -9,7 +9,7 @@ const DB_DATEINAME = 'filmsammlung.sqlite3'
 
 // Einfache Schema-Versionierung: Jede neue Version fügt bei Bedarf
 // weitere Spalten/Tabellen hinzu, ohne bestehende Daten zu verlieren.
-const AKTUELLE_SCHEMA_VERSION = 7
+const AKTUELLE_SCHEMA_VERSION = 8
 
 let dbInstanz: Database | null = null
 let dbWirdGeoeffnet: Promise<Database> | null = null
@@ -127,6 +127,16 @@ function fuehreMigrationenAus(db: Database): void {
     // das war bei ihnen tatsächlich auch der Fall.
     db.run("ALTER TABLE filme ADD COLUMN typ TEXT NOT NULL DEFAULT 'Film'")
     db.run('ALTER TABLE filme ADD COLUMN staffel TEXT')
+  }
+
+  if (vorhandeneVersion < 8) {
+    // Frei definierbare Tags (Version 1.37) - Nutzer-Idee für flexible,
+    // selbst definierte Film-Gruppen (z. B. "Lieblingsfilm", "Weihnachtsfilm",
+    // "Gesehen"), ohne dafür einzelne feste Felder bauen zu müssen. Bewusst
+    // ein einziges Freitextfeld statt einer eigenen Tags-Tabelle - der
+    // Nutzer trennt mehrere Tags selbst per Komma, das Filtern durchsucht
+    // das Feld einfach per Textvergleich (siehe Filterzustand/FilmListe.tsx).
+    db.run('ALTER TABLE filme ADD COLUMN tags TEXT')
   }
 
   if (vorhandeneVersion === 0) {

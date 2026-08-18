@@ -75,6 +75,7 @@ function FilmAnzeige({ film, onSchliessen }: Props) {
         <FeldZeile label="Produktionsland" wert={film.produktionsland} />
         <FeldZeile label="Sprache" wert={film.sprache} />
         <FeldZeile label="IMDb-Bewertung" wert={film.imdbBewertung} />
+        <FeldZeile label="Tags" wert={film.tags} />
         <FeldZeile label="Barcode" wert={film.barcode} />
         <FeldZeile label="Ausgeliehen an" wert={film.ausgeliehenAn} />
         <FeldZeile label="Ausgeliehen am" wert={film.ausgeliehenAm} />
