@@ -273,7 +273,7 @@ function FilmListe({
             type="text"
             value={filter.tags}
             onChange={(ereignis) => feldAendern('tags', ereignis.target.value)}
-            placeholder="Tags enthält … (mehrere durch Komma getrennt = UND)"
+            placeholder="Tags enthält … (mehrere durch Komma getrennt = ODER)"
           />
 
           <select

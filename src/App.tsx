@@ -338,11 +338,17 @@ function App() {
   const gefilterteFilme = useMemo(() => {
     const sucheKleingeschrieben = filter.suche.trim().toLowerCase()
     const genreKleingeschrieben = filter.genre.trim().toLowerCase()
-    // Mehrere, durch Komma getrennte Suchbegriffe müssen ALLE im Tags-Feld
-    // des Films vorkommen (UND-Verknüpfung) - z. B. "Weihnachtsfilm, 2023"
-    // findet nur Filme, die beide Begriffe enthalten. Einzelne Begriffe
-    // werden per einfachem Substring-Vergleich gesucht (wie beim Genre-
-    // Filter), das findet Tags unabhängig von ihrer Position im Feld.
+    // Mehrere, durch Komma getrennte Suchbegriffe finden Filme, die
+    // MINDESTENS EINEN davon im Tags-Feld haben (ODER-Verknüpfung) - z. B.
+    // "Weihnachtsfilm, Lieblingsfilm" findet alle Filme mit mindestens einem
+    // der beiden Tags. Ursprünglich als UND-Verknüpfung umgesetzt, nach
+    // Praxistest auf Nutzerwunsch auf ODER geändert (Version 1.38) - beim
+    // Test mit zwei Filmen, die je nur eines der gesuchten Tags trugen,
+    // lieferte UND wie spezifiziert null Treffer, was dem eigentlichen
+    // Nutzungswunsch (mehrere mögliche Tags gleichzeitig suchen) nicht
+    // entsprach. Einzelne Begriffe werden weiterhin per einfachem
+    // Substring-Vergleich gesucht (wie beim Genre-Filter), das findet Tags
+    // unabhängig von ihrer Position im Feld.
     const tagsBegriffe = filter.tags
       .split(',')
       .map((begriff) => begriff.trim().toLowerCase())
@@ -362,7 +368,7 @@ function App() {
       if (filter.omdbUnvollstaendig && film.genre) return false
       if (tagsBegriffe.length > 0) {
         const filmTagsKleingeschrieben = film.tags?.toLowerCase() ?? ''
-        if (!tagsBegriffe.every((begriff) => filmTagsKleingeschrieben.includes(begriff))) return false
+        if (!tagsBegriffe.some((begriff) => filmTagsKleingeschrieben.includes(begriff))) return false
       }
       return true
     })

@@ -71,8 +71,8 @@ export interface Filterzustand {
   ausgeliehenStatus: 'alle' | 'verliehen' | 'nicht_verliehen'
   omdbUnvollstaendig: boolean
   // Freitext-Filter fürs Tags-Feld (Version 1.37) - mehrere, durch Komma
-  // getrennte Suchbegriffe müssen ALLE im Tags-Feld des Films vorkommen
-  // (UND-Verknüpfung), siehe gefilterteFilme in App.tsx.
+  // getrennte Suchbegriffe finden Filme mit MINDESTENS EINEM davon
+  // (ODER-Verknüpfung, seit Version 1.38), siehe gefilterteFilme in App.tsx.
   tags: string
 }
 
