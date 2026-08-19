@@ -100,7 +100,8 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
   .abschnitt-body.offen { display: flex; }
   .filterleiste { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
   .filterleiste input, .filterleiste select { padding: 0.4rem; font-size: 0.9rem; font-family: inherit; flex: 1 1 9rem; }
-  .filterleiste label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.9rem; flex: 1 1 100%; }
+  .filterleiste label { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.9rem; flex: 1 1 100%; }
+  .filterleiste label input[type="checkbox"] { margin: 0.15rem 0 0; flex-shrink: 0; }
   .filter-fuss { display: flex; justify-content: flex-end; }
   .sek-btn { padding: 0.45rem 0.75rem; font-size: 0.85rem; font-family: inherit; font-weight: 500; border: 1px solid #d1d5db;
     border-radius: 0.4rem; background: canvas; color: canvastext; cursor: pointer; }
@@ -149,7 +150,7 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
 <div class="kopf-reihe">
   <div>
     <h1>Filmsammlung – Verleih-Katalog</h1>
-    <p class="stand">Stand: ${heutigesDatumDeutsch()} · fester Schnappschuss, keine Live-Daten</p>
+    <p class="stand">Stand: ${heutigesDatumDeutsch()}</p>
   </div>
   <button type="button" class="wunschliste-btn" id="wunschliste-oeffnen">
     Wunschliste<span class="wunschliste-badge" id="wunschliste-badge" hidden>0</span>
@@ -493,8 +494,14 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
       wunschlisteMail.removeAttribute('href');
     } else {
       wunschlisteMail.removeAttribute('aria-disabled');
+      // Zeilenumbrüche bewusst als \\r\\n (CR+LF) statt nur \\n: Der mailto:-
+      // Standard (RFC 6068) sieht CR+LF für Zeilenenden im body-Parameter
+      // vor - manche Mail-Programme brechen bei einem alleinigen \\n nicht
+      // zuverlässig um. Nach der einleitenden Zeile folgt die Filmliste
+      // direkt (kein Leerzeilen-Abstand), das abschließende "Danke!" bleibt
+      // dagegen durch eine Leerzeile abgesetzt.
       var betreff = 'Verleihwunsch: ' + anzahl + ' Film(e) aus deiner Sammlung';
-      var text = 'Hallo,\\n\\nfolgende Filme würde ich mir gerne ausleihen:\\n\\n- ' + titelListe.join('\\n- ') + '\\n\\nDanke!';
+      var text = 'Hallo,\\r\\n\\r\\nfolgende Filme würde ich mir gerne ausleihen:\\r\\n- ' + titelListe.join('\\r\\n- ') + '\\r\\n\\r\\nDanke!';
       wunschlisteMail.setAttribute('href', 'mailto:?subject=' + encodeURIComponent(betreff) + '&body=' + encodeURIComponent(text));
     }
   }
