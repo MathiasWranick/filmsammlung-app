@@ -68,10 +68,19 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Zusätzlich zum :root { color-scheme: ... } in der CSS unten auch als
+     eigenes <meta>-Tag gesetzt: Manche Browser/Vorschau-Ansichten (z. B.
+     eingebettete Browser von Mail- oder Messenger-Apps, oder das direkte
+     Öffnen einer lokal heruntergeladenen Datei) werten dieses Tag
+     zuverlässiger aus als eine reine CSS-Angabe und greifen sonst auf eine
+     eigene, vom eigentlichen Geräte-/Browser-Einstellung abweichende
+     Dunkeldarstellung zurück. -->
+<meta name="color-scheme" content="light dark" />
 <title>Filmsammlung – Verleih-Katalog</title>
 <style>
   :root { color-scheme: light dark; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  body { margin: 0; padding: 1.25rem 1rem 3rem; max-width: 32rem; margin-inline: auto; overflow-x: hidden; }
+  body { margin: 0; padding: 1.25rem 1rem 3rem; max-width: 32rem; margin-inline: auto; overflow-x: hidden;
+    background: canvas; color: canvastext; }
   h1 { font-size: 1.3rem; margin: 0 0 0.15rem; }
   .stand { color: #6b7280; font-size: 0.8rem; margin: 0 0 1rem; }
   .kopf-reihe { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.25rem; }
@@ -89,8 +98,15 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
   .abschnitt-pfeil.auf { transform: rotate(180deg); }
   .abschnitt-body { padding: 0.75rem; border-top: 1px solid #d1d5db; display: none; flex-direction: column; gap: 0.6rem; }
   .abschnitt-body.offen { display: flex; }
-  .filterleiste { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .filterleiste { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
   .filterleiste input, .filterleiste select { padding: 0.4rem; font-size: 0.9rem; font-family: inherit; flex: 1 1 9rem; }
+  .filterleiste label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.9rem; flex: 1 1 100%; }
+  .filter-fuss { display: flex; justify-content: flex-end; }
+  .sek-btn { padding: 0.45rem 0.75rem; font-size: 0.85rem; font-family: inherit; font-weight: 500; border: 1px solid #d1d5db;
+    border-radius: 0.4rem; background: canvas; color: canvastext; cursor: pointer; }
+  .sek-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .sortier-inline { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; }
+  .sortier-inline select { padding: 0.35rem 0.4rem; font-size: 0.9rem; font-family: inherit; }
 
   .film-liste { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
   .film-karte { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.6rem 0.7rem; border: 1px solid #e5e7eb;
@@ -147,9 +163,37 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
   </button>
   <div class="abschnitt-body" id="filter-body">
     <div class="filterleiste">
-      <input type="text" id="suche" placeholder="Suche (alle Felder) …" />
+      <input type="text" id="filter-titel" placeholder="Titel suchen …" />
       <select id="filter-format"><option value="">Alle Formate</option></select>
       <select id="filter-typ"><option value="">Filme &amp; Serien</option></select>
+      <select id="filter-fsk"><option value="">Alle FSK-Stufen</option></select>
+      <input type="text" id="filter-genre" placeholder="Genre enthält …" />
+      <label>
+        <input type="checkbox" id="filter-nur-ausgewaehlt" />
+        Nur ausgewählte (Wunschliste) anzeigen
+      </label>
+    </div>
+    <div class="filter-fuss">
+      <button type="button" class="sek-btn" id="filter-zuruecksetzen">Filter zurücksetzen</button>
+    </div>
+  </div>
+</div>
+
+<div class="abschnitt">
+  <button type="button" class="abschnitt-kopf" id="sortier-kopf" aria-expanded="false">
+    <span>Sortieren</span>
+    <span class="abschnitt-pfeil" id="sortier-pfeil">▾</span>
+  </button>
+  <div class="abschnitt-body" id="sortier-body">
+    <div class="sortier-inline">
+      <select id="sortier-feld">
+        <option value="titel">Titel</option>
+        <option value="jahr">Erscheinungsjahr</option>
+      </select>
+      <select id="sortier-richtung">
+        <option value="aufsteigend">Aufsteigend</option>
+        <option value="absteigend">Absteigend</option>
+      </select>
     </div>
   </div>
 </div>
@@ -210,16 +254,18 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
     return teile.join(' · ');
   }
 
-  function volltext(film) {
-    return [film.titel, film.format, film.typ, film.fassung, film.staffel, film.genre, film.jahr, film.fsk,
-      film.laufzeit, film.handlung, film.bewertung].filter(Boolean).join(' ').toLowerCase();
-  }
+  // Feste Liste statt aus den Daten abgeleitet - dieselbe Freigabestufen-
+  // Domäne wie im FSK-Filter der Haupt-App (dort ebenfalls fest codiert,
+  // siehe FilmListe.tsx), unabhängig davon, welche Stufen in der aktuellen
+  // Sammlung gerade tatsächlich vorkommen.
+  var FSK_STUFEN = ['0', '6', '12', '16', '18'];
 
   // Auswahllisten für die Format-/Typ-Filter aus den tatsächlich
   // vorkommenden Werten aufbauen, statt einer fest codierten Liste - bleibt
   // dadurch automatisch korrekt, auch wenn nicht jedes Format vorkommt.
   var formatSelect = document.getElementById('filter-format');
   var typSelect = document.getElementById('filter-typ');
+  var fskSelect = document.getElementById('filter-fsk');
   var formate = Array.from(new Set(filme.map(function (f) { return f.format; }))).sort();
   formate.forEach(function (format) {
     var option = document.createElement('option');
@@ -234,6 +280,12 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
     option.textContent = typ;
     typSelect.appendChild(option);
   });
+  FSK_STUFEN.forEach(function (stufe) {
+    var option = document.createElement('option');
+    option.value = stufe;
+    option.textContent = 'FSK ' + stufe;
+    fskSelect.appendChild(option);
+  });
 
   var filterKopf = document.getElementById('filter-kopf');
   var filterBody = document.getElementById('filter-body');
@@ -244,21 +296,71 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
     filterKopf.setAttribute('aria-expanded', String(offen));
   });
 
-  var sucheEingabe = document.getElementById('suche');
+  var sortierKopf = document.getElementById('sortier-kopf');
+  var sortierBody = document.getElementById('sortier-body');
+  var sortierPfeil = document.getElementById('sortier-pfeil');
+  sortierKopf.addEventListener('click', function () {
+    var offen = sortierBody.classList.toggle('offen');
+    sortierPfeil.classList.toggle('auf', offen);
+    sortierKopf.setAttribute('aria-expanded', String(offen));
+  });
+
+  var titelEingabe = document.getElementById('filter-titel');
+  var genreEingabe = document.getElementById('filter-genre');
+  var nurAusgewaehltCheckbox = document.getElementById('filter-nur-ausgewaehlt');
+  var filterZuruecksetzenBtn = document.getElementById('filter-zuruecksetzen');
+  var sortierFeldSelect = document.getElementById('sortier-feld');
+  var sortierRichtungSelect = document.getElementById('sortier-richtung');
   var listeContainer = document.getElementById('film-liste');
   var trefferAnzahl = document.getElementById('treffer-anzahl');
   var keineTreffer = document.getElementById('keine-treffer');
 
+  // Jedes Filterfeld grenzt unabhängig von den anderen ein (UND-
+  // Verknüpfung) - so wie in der Haupt-App lassen sich also mehrere Filter
+  // gleichzeitig setzen, z. B. Format "Blu-ray" UND FSK 16 UND Genre
+  // "Action" gleichzeitig.
   function gefilterteFilme() {
-    var suchbegriff = sucheEingabe.value.trim().toLowerCase();
+    var titelbegriff = titelEingabe.value.trim().toLowerCase();
     var format = formatSelect.value;
     var typ = typSelect.value;
+    var fsk = fskSelect.value;
+    var genrebegriff = genreEingabe.value.trim().toLowerCase();
+    var nurAusgewaehlt = nurAusgewaehltCheckbox.checked;
     return filme.filter(function (film, index) {
       if (format && film.format !== format) return false;
       if (typ && film.typ !== typ) return false;
-      if (suchbegriff && volltext(film).indexOf(suchbegriff) === -1) return false;
+      if (fsk && film.fsk !== fsk) return false;
+      if (titelbegriff && film.titel.toLowerCase().indexOf(titelbegriff) === -1) return false;
+      if (genrebegriff && !(film.genre && film.genre.toLowerCase().indexOf(genrebegriff) !== -1)) return false;
+      if (nurAusgewaehlt && !ausgewaehlt.has(index)) return false;
       film._index = index;
       return true;
+    });
+  }
+
+  // Sortiert die Liste, analog zur Sortierung in der Haupt-App
+  // (FilmListe.tsx): Titel alphabetisch (deutsche Sortierregeln) oder Jahr
+  // numerisch. Filme ohne Erscheinungsjahr landen dabei bewusst IMMER am
+  // Ende, unabhängig von der gewählten Richtung - "kein Jahr bekannt" soll
+  // nicht wie "frühestes Jahr" wirken, sobald man auf absteigend umschaltet.
+  // Die Auf-/Absteigend-Richtung wirkt sich deshalb gezielt nur auf den
+  // Vergleich zweier tatsächlich vorhandener Werte aus, nicht auf die
+  // Sonderbehandlung fehlender Werte. Bei Gleichstand (gleiches Jahr, oder
+  // Sortierung nach Titel) entscheidet zusätzlich der Titel, damit die
+  // Reihenfolge nachvollziehbar bleibt.
+  function sortiereFilme(treffer) {
+    var feld = sortierFeldSelect.value;
+    var richtung = sortierRichtungSelect.value;
+    treffer.sort(function (a, b) {
+      if (feld === 'jahr') {
+        if (a.jahr === undefined && b.jahr === undefined) return a.titel.localeCompare(b.titel, 'de');
+        if (a.jahr === undefined) return 1;
+        if (b.jahr === undefined) return -1;
+        if (a.jahr !== b.jahr) return richtung === 'absteigend' ? b.jahr - a.jahr : a.jahr - b.jahr;
+        return a.titel.localeCompare(b.titel, 'de');
+      }
+      var ergebnis = a.titel.localeCompare(b.titel, 'de');
+      return richtung === 'absteigend' ? -ergebnis : ergebnis;
     });
   }
 
@@ -293,6 +395,7 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
 
   function liste_rendern() {
     var treffer = gefilterteFilme();
+    sortiereFilme(treffer);
     listeContainer.textContent = '';
     keineTreffer.hidden = treffer.length > 0;
     trefferAnzahl.textContent = treffer.length + ' von ' + filme.length + ' Filmen angezeigt';
@@ -329,9 +432,24 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
     });
   }
 
-  sucheEingabe.addEventListener('input', liste_rendern);
+  titelEingabe.addEventListener('input', liste_rendern);
   formatSelect.addEventListener('change', liste_rendern);
   typSelect.addEventListener('change', liste_rendern);
+  fskSelect.addEventListener('change', liste_rendern);
+  genreEingabe.addEventListener('input', liste_rendern);
+  nurAusgewaehltCheckbox.addEventListener('change', liste_rendern);
+  sortierFeldSelect.addEventListener('change', liste_rendern);
+  sortierRichtungSelect.addEventListener('change', liste_rendern);
+
+  filterZuruecksetzenBtn.addEventListener('click', function () {
+    titelEingabe.value = '';
+    formatSelect.value = '';
+    typSelect.value = '';
+    fskSelect.value = '';
+    genreEingabe.value = '';
+    nurAusgewaehltCheckbox.checked = false;
+    liste_rendern();
+  });
 
   // Detail-Overlay schließen (X, Hintergrund-Klick, Escape) - dasselbe
   // Bedienmuster wie in der Haupt-App (Overlay.tsx).
