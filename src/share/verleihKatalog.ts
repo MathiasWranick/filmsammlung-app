@@ -99,9 +99,8 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
   .abschnitt-body { padding: 0.75rem; border-top: 1px solid #d1d5db; display: none; flex-direction: column; gap: 0.6rem; }
   .abschnitt-body.offen { display: flex; }
   .filterleiste { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-  .filterleiste input, .filterleiste select { padding: 0.4rem; font-size: 0.9rem; font-family: inherit; flex: 1 1 9rem; }
-  .filterleiste label { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.9rem; flex: 1 1 100%; }
-  .filterleiste label input[type="checkbox"] { margin: 0.15rem 0 0; flex-shrink: 0; }
+  .filterleiste input:not([type="checkbox"]), .filterleiste select { padding: 0.4rem; font-size: 0.9rem; font-family: inherit; flex: 1 1 9rem; }
+  .filterleiste label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.9rem; }
   .filter-fuss { display: flex; justify-content: flex-end; }
   .sek-btn { padding: 0.45rem 0.75rem; font-size: 0.85rem; font-family: inherit; font-weight: 500; border: 1px solid #d1d5db;
     border-radius: 0.4rem; background: canvas; color: canvastext; cursor: pointer; }
@@ -534,10 +533,15 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
 `
 }
 
+// Enthält bewusst auch Stunde/Minute, nicht nur das Datum (Version 1.42) -
+// beim iterativen Testen kommt es sonst vor, dass mehrere Downloads am
+// selben Tag denselben Dateinamen erhalten und der Browser/das
+// Betriebssystem eine ältere, gleichnamige Datei stillschweigend behält
+// oder wiederverwendet statt der zuletzt heruntergeladenen Version.
 function datumFuerDateiname(): string {
   const jetzt = new Date()
   const zweistellig = (zahl: number) => String(zahl).padStart(2, '0')
-  return `${jetzt.getFullYear()}-${zweistellig(jetzt.getMonth() + 1)}-${zweistellig(jetzt.getDate())}`
+  return `${jetzt.getFullYear()}-${zweistellig(jetzt.getMonth() + 1)}-${zweistellig(jetzt.getDate())}_${zweistellig(jetzt.getHours())}${zweistellig(jetzt.getMinutes())}`
 }
 
 export interface VerleihKatalogErgebnis {
