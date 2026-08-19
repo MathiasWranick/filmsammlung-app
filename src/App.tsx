@@ -22,6 +22,7 @@ import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 import KontoLeiste from './components/KontoLeiste'
 import Overlay from './components/Overlay'
+import VerleihKatalog from './components/VerleihKatalog'
 import { BUILD_VERSION } from './version'
 
 type LadeStatus = 'laedt' | 'bereit' | 'fehler'
@@ -427,6 +428,8 @@ function App() {
         />
         <hr className="verwaltung-trenner" />
         <Datensicherung onWiederherstellen={sicherungWiederherstellenHandler} />
+        <hr className="verwaltung-trenner" />
+        <VerleihKatalog />
       </Abschnitt>
 
       {ladeStatus === 'laedt' && <p className="hint">Datenbank wird geladen …</p>}

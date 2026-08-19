@@ -60,6 +60,16 @@ body {
   gap: 0.5rem;
 }
 
+.verleih-katalog {
+  /* Version 1.39 - "Sammlung teilen", dritter Baustein innerhalb von
+     "Verwaltung" (nach Kontoleiste und Datensicherung, ebenfalls per
+     Trennlinie abgesetzt), gleiches Layout-Muster wie .datensicherung. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Wiederverwendbarer, einheitlich großer Button-Stil für alle
    "administrativen" Aktionen (Synchronisieren, Abmelden, Datensicherung,
    Filter zurücksetzen) - löst das Nutzer-Feedback, dass Buttons im
