@@ -146,6 +146,24 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
 </head>
 <body>
 
+<!-- Wird nur sichtbar, wenn JavaScript in der aktuellen Ansicht NICHT
+     ausgeführt wird (z. B. wenn die Datei nicht in einer echten
+     Browser-Ansicht, sondern nur in einer Schnellvorschau geöffnet wurde -
+     etwa durch Antippen eines Mail-Anhangs auf dem iPhone/iPad, ohne
+     "In Safari öffnen" zu wählen). Ohne JavaScript bleibt die Filmliste
+     leer, da sie erst zur Laufzeit aus den eingebetteten Daten aufgebaut
+     wird - dieser Hinweis erklärt dem Empfänger, woran das liegt. -->
+<noscript>
+  <p class="hint" style="border: 1px solid #d1d5db; border-radius: 0.5rem; padding: 0.75rem; margin: 0 0 1rem;">
+    Diese Seite benötigt aktiviertes JavaScript, um die Filmliste anzuzeigen. Falls du diese Datei über eine
+    Vorschau geöffnet hast (z. B. durch Antippen eines Mail-Anhangs, ohne eine eigene Browser-Ansicht zu öffnen),
+    öffne sie stattdessen direkt in einem Browser wie Safari oder Chrome (z. B. über "Teilen" → passende
+    Browser-App, oder aus der Dateien-App heraus).
+  </p>
+</noscript>
+
+<div id="lade-fehler" class="hint" style="display: none; border: 1px solid #d1d5db; border-radius: 0.5rem; padding: 0.75rem; margin: 0 0 1rem;"></div>
+
 <div class="kopf-reihe">
   <div>
     <h1>Filmsammlung – Verleih-Katalog</h1>
@@ -235,6 +253,12 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
 <script>
 (function () {
   'use strict';
+  // Die gesamte Initialisierung läuft in einem try/catch: Schlägt hier
+  // irgendetwas fehl (z. B. weil das eingebettete JSON aus irgendeinem
+  // Grund nicht gelesen werden kann), bliebe die Seite ohne diesen Schutz
+  // einfach leer, ohne erkennbaren Hinweis, woran es liegt. Mit dem
+  // try/catch erscheint stattdessen eine sichtbare Fehlermeldung.
+  try {
   var filme = JSON.parse(document.getElementById('filme-daten').textContent);
   var ausgewaehlt = new Set();
 
@@ -526,6 +550,17 @@ export function verleihKatalogHtmlErzeugen(filme: VerleihFilm[]): string {
 
   liste_rendern();
   wunschliste_aktualisieren();
+  } catch (fehler) {
+    var fehlerBox = document.getElementById('lade-fehler');
+    if (fehlerBox) {
+      fehlerBox.style.display = 'block';
+      fehlerBox.textContent = 'Die Filmliste konnte nicht geladen werden (' +
+        (fehler && fehler.message ? fehler.message : String(fehler)) +
+        '). Bitte die Datei erneut über einen vollständigen Browser öffnen (nicht nur über eine Vorschau) - ' +
+        'falls das Problem dann weiterhin besteht, bitte melden.';
+    }
+    if (typeof console !== 'undefined' && console.error) console.error(fehler);
+  }
 })();
 </script>
 </body>
