@@ -5,4 +5,4 @@
 // tatsächlich geladen ist - hilfreich z. B. beim Testen auf dem Handy, wo
 // nicht immer offensichtlich ist, ob noch eine ältere, zwischengespeicherte
 // Version angezeigt wird.
-export const BUILD_VERSION = 'v1.43'
+export const BUILD_VERSION = 'v1.44'

@@ -198,9 +198,23 @@ export async function erkenneFilmdaten(
   antwort = antwort as Response
 
   if (antwort.status === 429) {
+    // Google unterscheidet mehrere mögliche Kontingent-Arten (u. a. Anfragen
+    // pro Minute, Anfragen pro Tag, Token pro Minute) - alle führen zum
+    // selben HTTP-Status 429, sind von außen also nicht unterscheidbar.
+    // Die genaue, ausgelöste Grenze steckt aber meist im Antworttext (Feld
+    // "quotaId" bzw. "description" innerhalb von error.details). Diese wird
+    // hier zusätzlich in der Browser-Konsole protokolliert (F12 bzw.
+    // Entwickler-Tools) - hilfreich, um beim nächsten Auftreten genau zu
+    // sehen, welches Kontingent konkret greift, statt nur zu vermuten.
+    try {
+      const fehlerDaten = await antwort.clone().json()
+      console.error('Gemini-Kontingent aufgebraucht - Rohdaten der Fehlerantwort:', fehlerDaten)
+    } catch {
+      // Antworttext nicht als JSON lesbar - kein zusätzliches Protokoll möglich.
+    }
     throw new ErkennungsFehler(
       'kontingent_aufgebraucht',
-      'Das kostenlose Tages-Kontingent für die KI-Erkennung ist aufgebraucht. Bitte später erneut versuchen (Kontingent wird täglich zurückgesetzt) oder die Daten manuell eingeben.',
+      'Das kostenlose Tages-Kontingent für die KI-Erkennung ist aufgebraucht. Bitte später erneut versuchen (Kontingent wird täglich zurückgesetzt) oder die Daten manuell eingeben. (Details zur genauen Kontingent-Art stehen in der Browser-Konsole.)',
     )
   }
 
