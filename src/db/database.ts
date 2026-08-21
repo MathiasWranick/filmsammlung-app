@@ -1,6 +1,7 @@
 import initSqlJs from 'sql.js'
 import type { Database } from 'sql.js'
 import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
+import { protokolliertSchreiben } from './speicherDiagnose'
 
 // Name der Datenbank-Datei im privaten Browser-Speicher (OPFS).
 // OPFS ist ein Dateisystem, das nur diese Web-App selbst sehen kann -
@@ -32,16 +33,18 @@ async function ladeDatenbankBytes(): Promise<Uint8Array | undefined> {
 }
 
 async function speichereDatenbankBytes(bytes: Uint8Array): Promise<void> {
-  const wurzel = await opfsWurzel()
-  const dateiHandle = await wurzel.getFileHandle(DB_DATEINAME, { create: true })
-  const schreibStrom = await dateiHandle.createWritable()
-  // Type-Cast nötig: TypeScripts DOM-Typen erwarten hier ein Uint8Array,
-  // dessen Speicherbereich exakt als "ArrayBuffer" typisiert ist, sql.js
-  // liefert aber den allgemeineren Typ "ArrayBufferLike" zurück. Zur
-  // Laufzeit sind beide identisch (ganz normale Bytes), es geht hier
-  // ausschließlich um eine Falschmeldung der TypeScript-Prüfung.
-  await schreibStrom.write(bytes as unknown as BufferSource)
-  await schreibStrom.close()
+  await protokolliertSchreiben(`Datenbank-Datei speichern (${DB_DATEINAME}, ${bytes.byteLength} Byte)`, async () => {
+    const wurzel = await opfsWurzel()
+    const dateiHandle = await wurzel.getFileHandle(DB_DATEINAME, { create: true })
+    const schreibStrom = await dateiHandle.createWritable()
+    // Type-Cast nötig: TypeScripts DOM-Typen erwarten hier ein Uint8Array,
+    // dessen Speicherbereich exakt als "ArrayBuffer" typisiert ist, sql.js
+    // liefert aber den allgemeineren Typ "ArrayBufferLike" zurück. Zur
+    // Laufzeit sind beide identisch (ganz normale Bytes), es geht hier
+    // ausschließlich um eine Falschmeldung der TypeScript-Prüfung.
+    await schreibStrom.write(bytes as unknown as BufferSource)
+    await schreibStrom.close()
+  })
 }
 
 function fuehreMigrationenAus(db: Database): void {

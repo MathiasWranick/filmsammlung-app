@@ -3,6 +3,7 @@
 // Datenbank klein und schnell, auch bei einer großen Sammlung.
 
 import { bildVerkleinern } from '../bild/verkleinern'
+import { protokolliertSchreiben } from './speicherDiagnose'
 
 export type FotoSeite = 'vorderseite' | 'rueckseite'
 
@@ -31,11 +32,13 @@ function dateiEndung(datei: File): string {
 // Browser zwischengespeicherte alte Version weiter anzuzeigen.
 export async function fotoSpeichern(filmId: string, seite: FotoSeite, datei: File): Promise<string> {
   const dateiname = `${filmId}-${seite}-${Date.now()}.${dateiEndung(datei)}`
-  const ordner = await fotosOrdner()
-  const dateiHandle = await ordner.getFileHandle(dateiname, { create: true })
-  const schreibStrom = await dateiHandle.createWritable()
-  await schreibStrom.write(datei)
-  await schreibStrom.close()
+  await protokolliertSchreiben(`Foto speichern (${dateiname}, ${datei.size} Byte)`, async () => {
+    const ordner = await fotosOrdner()
+    const dateiHandle = await ordner.getFileHandle(dateiname, { create: true })
+    const schreibStrom = await dateiHandle.createWritable()
+    await schreibStrom.write(datei)
+    await schreibStrom.close()
+  })
   return dateiname
 }
 
@@ -77,11 +80,14 @@ export function fotoMiniaturDateiname(fotoDateiname: string): string {
 // Detailansicht/Bearbeitung wird weiterhin das vollständige Foto geladen.
 export async function fotoMiniaturSpeichern(fotoDateiname: string, datei: File): Promise<void> {
   const miniatur = await bildVerkleinern(datei, MINIATUR_MAX_KANTE, 0.75)
-  const ordner = await fotosOrdner()
-  const dateiHandle = await ordner.getFileHandle(fotoMiniaturDateiname(fotoDateiname), { create: true })
-  const schreibStrom = await dateiHandle.createWritable()
-  await schreibStrom.write(miniatur)
-  await schreibStrom.close()
+  const miniaturDateiname = fotoMiniaturDateiname(fotoDateiname)
+  await protokolliertSchreiben(`Miniaturansicht speichern (${miniaturDateiname}, ${miniatur.size} Byte)`, async () => {
+    const ordner = await fotosOrdner()
+    const dateiHandle = await ordner.getFileHandle(miniaturDateiname, { create: true })
+    const schreibStrom = await dateiHandle.createWritable()
+    await schreibStrom.write(miniatur)
+    await schreibStrom.close()
+  })
 }
 
 // Lädt bevorzugt die kleine Miniaturansicht eines Fotos (für die Kachel in
@@ -138,9 +144,11 @@ export async function fotoExistiertLokal(dateiname: string): Promise<boolean> {
 // eigenem Zeitstempel erzeugt, weil der Dateiname ja schon eindeutig ist
 // und unverändert in der Datenbank verlinkt werden muss.
 export async function fotoRohSpeichern(dateiname: string, daten: Blob): Promise<void> {
-  const ordner = await fotosOrdner()
-  const dateiHandle = await ordner.getFileHandle(dateiname, { create: true })
-  const schreibStrom = await dateiHandle.createWritable()
-  await schreibStrom.write(daten)
-  await schreibStrom.close()
+  await protokolliertSchreiben(`Sync - Foto vom OneDrive übernehmen (${dateiname}, ${daten.size} Byte)`, async () => {
+    const ordner = await fotosOrdner()
+    const dateiHandle = await ordner.getFileHandle(dateiname, { create: true })
+    const schreibStrom = await dateiHandle.createWritable()
+    await schreibStrom.write(daten)
+    await schreibStrom.close()
+  })
 }
