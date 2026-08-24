@@ -239,6 +239,13 @@ body {
 .film-liste {
   list-style: none;
   padding: 0;
+  /* Fester Abstand zur "X von Y Filmen angezeigt"-Zeile oberhalb, statt sich
+     auf den (je nach Element unterschiedlichen) Browser-Standardrand einer
+     <ul> zu verlassen - Version 1.47: vorher hatte nur ".film-raster" einen
+     bewusst gesetzten Randabstand (0), wodurch die Rasteransicht direkt ohne
+     Abstand begann, während die Liste den nicht gesetzten Browser-Standard
+     zeigte. Beide nutzen jetzt denselben, hier festgelegten Wert. */
+  margin: 1rem 0 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -324,27 +331,55 @@ body {
   gap: 0.75rem;
   list-style: none;
   padding: 0;
-  margin: 0;
+  /* Gleicher Randabstand wie ".film-liste" oben - siehe Kommentar dort. */
+  margin: 1rem 0 0;
 }
 
+/* Kachel: Cover-Bereich (fest im DVD-/Blu-ray-Seitenverhältnis) plus
+   Kurzbeschriftung darunter (siehe kachelBeschriftung() in FilmListe.tsx,
+   Version 1.47) - nötig, damit sich Filme mit identischem Frontcover
+   (typischerweise Teile derselben Box-Sammlung) im Raster überhaupt
+   unterscheiden lassen. */
 .film-kachel {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   padding: 0;
   border: 1px solid #e5e7eb;
   border-radius: 0.4rem;
   background: canvas;
+  color: canvastext;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+  overflow: hidden;
+}
+
+.film-kachel-cover {
+  display: block;
   /* Klassisches Hochformat-Seitenverhältnis für ein DVD-/Blu-ray-Cover. */
   aspect-ratio: 2 / 3;
   overflow: hidden;
 }
 
-.film-kachel img {
+.film-kachel-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.film-kachel-titel {
+  display: block;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  /* Einzeilig mit Auslassungspunkten kürzen statt umzubrechen - laut Nutzer
+     genügt bei der verwendeten Titel-Konvention (siehe kachelBeschriftung())
+     eine einzelne Zeile zur Unterscheidung. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .formular-fotovorschau {

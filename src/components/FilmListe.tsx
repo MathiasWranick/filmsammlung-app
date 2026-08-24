@@ -156,7 +156,13 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: 
         <div className="hint">
           {film.format}
           {film.jahr && ` · ${film.jahr}`}
-          {film.typ === 'Serie' && ` · Serie${film.staffel ? ` (Staffel ${film.staffel})` : ''}`}
+          {/* Seit Version 1.47 ohne festes "Staffel"-Präfix: Der Nutzer trägt
+              inzwischen selbst die vollständige Bezeichnung (z. B. "Staffel 1")
+              in das Staffel-Feld ein, ein zusätzliches Label hier hätte sonst
+              zu "Staffel Staffel 1" geführt. Ältere, noch nicht angepasste
+              Datensätze mit einer reinen Zahl im Feld zeigen hier bis zur
+              manuellen Anpassung entsprechend nur die Zahl ohne Label. */}
+          {film.typ === 'Serie' && ` · Serie${film.staffel ? ` (${film.staffel})` : ''}`}
           {film.fsk && ` · FSK ${film.fsk}`}
           {film.laufzeitMinuten && ` · ${film.laufzeitMinuten} Min.`}
           {film.ausgeliehenAn && (
@@ -186,11 +192,35 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: 
   )
 }
 
-// Kachel der Rasteransicht (Version 1.46): zeigt ausschließlich das
-// Frontcover, ein Klick öffnet dasselbe Anzeige-Overlay wie der
-// "Anzeigen"-Button in der Listenansicht. Ändern/Verleihen/Löschen bleiben
-// bewusst der Listenansicht vorbehalten (Nutzeranforderung) - dafür fehlen
-// hier absichtlich die entsprechenden Aktionen/Buttons.
+// Kurze Beschriftung unter einer Rasterkachel (Version 1.47) - nötig, weil
+// insbesondere Box-Sammlungen mehrere Filme mit identischem Frontcover-Foto
+// enthalten können, die sich im Raster (im Unterschied zur Liste) sonst rein
+// optisch nicht unterscheiden lassen. Nutzt dafür bewusst KEINE eigene
+// Erkennung gleicher Cover (dafür müsste man Bilddateien inhaltlich
+// vergleichen - unverhältnismäßiger Aufwand), sondern eine vom Nutzer selbst
+// bereits gepflegte Titel-Konvention: Bei mehrteiligen Sammlungen trägt er
+// den Titel als "<Reihentitel> <Nummer> - <eigentlicher Titel>" ein (z. B.
+// "Fast & Furious 1 - The Fast and the Furious"); hier wird nur der Teil vor
+// dem ersten " - " gezeigt, das reicht laut Nutzer bereits zur Unterscheidung
+// und ist kurz genug für eine einzelne Zeile. Enthält ein Titel dieses
+// Trennzeichen nicht (der Normalfall bei eigenständigen Filmen), wird
+// einfach der komplette Titel gezeigt (bei Bedarf per CSS einzeilig
+// gekürzt). Bei Serien wird stattdessen bevorzugt das Staffel-Feld gezeigt
+// (informativer als der Titel, wenn mehrere Staffeln derselben Serie in der
+// Sammlung stehen) - ist bei einer Serie ausnahmsweise keine Staffel
+// hinterlegt, greift ersatzweise dieselbe Titel-Logik wie oben.
+function kachelBeschriftung(film: Film): string {
+  if (film.typ === 'Serie' && film.staffel) return film.staffel
+  const trennzeichenIndex = film.titel.indexOf(' - ')
+  return trennzeichenIndex === -1 ? film.titel : film.titel.slice(0, trennzeichenIndex)
+}
+
+// Kachel der Rasteransicht (Version 1.46, Beschriftung seit 1.47): zeigt das
+// Frontcover plus die obige Kurzbeschriftung, ein Klick öffnet dasselbe
+// Anzeige-Overlay wie der "Anzeigen"-Button in der Listenansicht.
+// Ändern/Verleihen/Löschen bleiben bewusst der Listenansicht vorbehalten
+// (Nutzeranforderung) - dafür fehlen hier absichtlich die entsprechenden
+// Aktionen/Buttons.
 interface FilmKachelProps {
   film: Film
   onAnzeigen: (film: Film) => void
@@ -208,7 +238,10 @@ function FilmKachel({ film, onAnzeigen }: FilmKachelProps) {
         title={film.titel}
         aria-label={`${film.titel} anzeigen`}
       >
-        {fotoUrl && <img src={fotoUrl} alt={`Cover von ${film.titel}`} />}
+        <span className="film-kachel-cover">
+          {fotoUrl && <img src={fotoUrl} alt={`Cover von ${film.titel}`} />}
+        </span>
+        <span className="film-kachel-titel">{kachelBeschriftung(film)}</span>
       </button>
     </li>
   )
