@@ -3,7 +3,7 @@ import { FILTER_STANDARD, FORMATE, TYPEN, type Film, type Filterzustand, type Fo
 import { fotoMiniaturLaden } from '../db/fotos'
 import Abschnitt from './Abschnitt'
 import FilmAnzeige from './FilmAnzeige'
-import { AugeIcon, PapierkorbIcon, StiftIcon, TauschIcon } from './Icons'
+import { AugeIcon, ListenIcon, PapierkorbIcon, RasterIcon, StiftIcon, TauschIcon } from './Icons'
 import VerleihOverlay from './VerleihOverlay'
 
 const FSK_STUFEN = ['0', '6', '12', '16', '18']
@@ -22,6 +22,25 @@ interface Sortierzustand {
 
 const SORTIERUNG_STANDARD: Sortierzustand = { feld: 'titel', richtung: 'aufsteigend' }
 const SORTIERUNG_SPEICHERSCHLUESSEL = 'filmsammlung-sortierung'
+
+// Ansicht der Ergebnisliste (Version 1.46): Liste (bisheriges Verhalten,
+// mit allen Aktionen) oder Raster (nur Frontcover, siehe FilmKachel unten).
+// Genau wie die Sortierung eine reine, geräteeigene Anzeige-Einstellung -
+// daher dasselbe Speicherschema wie bei SORTIERUNG_SPEICHERSCHLUESSEL, nur
+// als einfacher String statt als Objekt (kein JSON.parse nötig).
+type Ansicht = 'liste' | 'raster'
+const ANSICHT_STANDARD: Ansicht = 'liste'
+const ANSICHT_SPEICHERSCHLUESSEL = 'filmsammlung-ansicht'
+
+function ansichtAusSpeicherLesen(): Ansicht {
+  try {
+    const gespeichert = window.localStorage.getItem(ANSICHT_SPEICHERSCHLUESSEL)
+    if (gespeichert === 'liste' || gespeichert === 'raster') return gespeichert
+  } catch {
+    // localStorage nicht verfügbar - Standardwert verwenden.
+  }
+  return ANSICHT_STANDARD
+}
 
 // Liest eine zuvor gewählte Sortierung aus dem lokalen Browser-Speicher
 // (je Gerät, bewusst nicht über den OneDrive-Sync geteilt - reine
@@ -84,15 +103,12 @@ function filterAktivAnzahl(filter: Filterzustand): number {
   ).length
 }
 
-interface FilmKarteProps {
-  film: Film
-  onAnzeigen: (film: Film) => void
-  onBearbeiten: (film: Film) => void
-  onLoeschen: (id: string) => void
-  onVerleihen: (film: Film) => void
-}
-
-function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: FilmKarteProps) {
+// Lädt die kleine Miniaturansicht des Vorderseiten-Fotos eines Films und
+// liefert eine anzeigbare Objekt-URL zurück (null, solange sie noch lädt).
+// Gemeinsam genutzt von FilmKarte (Listenansicht) und FilmKachel
+// (Rasteransicht, Version 1.46) - beide zeigen dasselbe Vorschaubild, nur in
+// unterschiedlichem Kartenlayout.
+function verwendeMiniaturFoto(fotoDateiname: string): string | null {
   const [fotoUrl, setFotoUrl] = useState<string | null>(null)
 
   useEffect(() => {
@@ -102,7 +118,7 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: 
     // Fotos (Version 1.36) - bei einer größeren Sammlung summiert sich der
     // Arbeitsspeicher für 30+ gleichzeitig geladene Vorschaubilder sonst
     // spürbar, siehe Architekturkonzept, Changelog 1.36.
-    fotoMiniaturLaden(film.fotoDateiname).then((url) => {
+    fotoMiniaturLaden(fotoDateiname).then((url) => {
       eigeneObjektUrl = url
       setFotoUrl(url)
     })
@@ -110,7 +126,21 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: 
     return () => {
       if (eigeneObjektUrl) URL.revokeObjectURL(eigeneObjektUrl)
     }
-  }, [film.fotoDateiname])
+  }, [fotoDateiname])
+
+  return fotoUrl
+}
+
+interface FilmKarteProps {
+  film: Film
+  onAnzeigen: (film: Film) => void
+  onBearbeiten: (film: Film) => void
+  onLoeschen: (id: string) => void
+  onVerleihen: (film: Film) => void
+}
+
+function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: FilmKarteProps) {
+  const fotoUrl = verwendeMiniaturFoto(film.fotoDateiname)
 
   function loeschen() {
     if (window.confirm(`„${film.titel}“ wirklich löschen?`)) {
@@ -156,6 +186,34 @@ function FilmKarte({ film, onAnzeigen, onBearbeiten, onLoeschen, onVerleihen }: 
   )
 }
 
+// Kachel der Rasteransicht (Version 1.46): zeigt ausschließlich das
+// Frontcover, ein Klick öffnet dasselbe Anzeige-Overlay wie der
+// "Anzeigen"-Button in der Listenansicht. Ändern/Verleihen/Löschen bleiben
+// bewusst der Listenansicht vorbehalten (Nutzeranforderung) - dafür fehlen
+// hier absichtlich die entsprechenden Aktionen/Buttons.
+interface FilmKachelProps {
+  film: Film
+  onAnzeigen: (film: Film) => void
+}
+
+function FilmKachel({ film, onAnzeigen }: FilmKachelProps) {
+  const fotoUrl = verwendeMiniaturFoto(film.fotoDateiname)
+
+  return (
+    <li>
+      <button
+        type="button"
+        className="film-kachel"
+        onClick={() => onAnzeigen(film)}
+        title={film.titel}
+        aria-label={`${film.titel} anzeigen`}
+      >
+        {fotoUrl && <img src={fotoUrl} alt={`Cover von ${film.titel}`} />}
+      </button>
+    </li>
+  )
+}
+
 interface Props {
   filme: Film[]
   gesamtAnzahl: number
@@ -182,6 +240,17 @@ function FilmListe({
   const [anzeigeFilm, setAnzeigeFilm] = useState<Film | null>(null)
   const [verleihFilm, setVerleihFilm] = useState<Film | null>(null)
   const [sortierung, setSortierung] = useState<Sortierzustand>(sortierungAusSpeicherLesen)
+  const [ansicht, setAnsicht] = useState<Ansicht>(ansichtAusSpeicherLesen)
+
+  function ansichtAendern(neu: Ansicht) {
+    setAnsicht(neu)
+    try {
+      window.localStorage.setItem(ANSICHT_SPEICHERSCHLUESSEL, neu)
+    } catch {
+      // Persistenz ist nur "nice to have" - schlägt das Speichern fehl, bleibt
+      // die Auswahl für die laufende Sitzung trotzdem wirksam.
+    }
+  }
 
   function feldAendern<K extends keyof Filterzustand>(feld: K, wert: Filterzustand[K]) {
     onFilterAendern({ ...filter, [feld]: wert })
@@ -325,13 +394,38 @@ function FilmListe({
         </div>
       </Abschnitt>
 
-      <p className="hint">
-        {filme.length} von {gesamtAnzahl} Filmen angezeigt
-      </p>
+      <div className="ansicht-kopf">
+        <p className="hint">
+          {filme.length} von {gesamtAnzahl} Filmen angezeigt
+        </p>
+
+        <div className="ansicht-umschalter">
+          <button
+            type="button"
+            className={ansicht === 'liste' ? 'aktiv' : undefined}
+            onClick={() => ansichtAendern('liste')}
+            title="Listenansicht"
+            aria-label="Listenansicht"
+            aria-pressed={ansicht === 'liste'}
+          >
+            <ListenIcon />
+          </button>
+          <button
+            type="button"
+            className={ansicht === 'raster' ? 'aktiv' : undefined}
+            onClick={() => ansichtAendern('raster')}
+            title="Rasteransicht"
+            aria-label="Rasteransicht"
+            aria-pressed={ansicht === 'raster'}
+          >
+            <RasterIcon />
+          </button>
+        </div>
+      </div>
 
       {filme.length === 0 ? (
         <p className="hint">{gesamtAnzahl === 0 ? 'Noch keine Filme erfasst.' : 'Keine Filme gefunden - Suche/Filter anpassen.'}</p>
-      ) : (
+      ) : ansicht === 'liste' ? (
         <ul className="film-liste">
           {sortierteFilme.map((film) => (
             <FilmKarte
@@ -342,6 +436,12 @@ function FilmListe({
               onLoeschen={onLoeschen}
               onVerleihen={setVerleihFilm}
             />
+          ))}
+        </ul>
+      ) : (
+        <ul className="film-raster">
+          {sortierteFilme.map((film) => (
+            <FilmKachel key={film.id} film={film} onAnzeigen={setAnzeigeFilm} />
           ))}
         </ul>
       )}
