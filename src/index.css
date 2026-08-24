@@ -350,7 +350,10 @@ body {
   background: canvas;
   color: canvastext;
   font: inherit;
-  text-align: left;
+  /* Zentriert statt linksbündig (Standard eines <button>) - betrifft
+     ausschließlich die Beschriftung darunter, das Cover selbst richtet sich
+     unabhängig davon per object-fit (siehe ".film-kachel-cover img"). */
+  text-align: center;
   cursor: pointer;
   overflow: hidden;
 }
