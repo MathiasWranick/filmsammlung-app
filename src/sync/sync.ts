@@ -54,7 +54,13 @@
 
 import { angemeldetesKontoLaden } from '../auth/msal'
 import { filmeFuerSyncLaden, filmeSyncStapelSchreiben, type Film } from '../db/filme'
-import { fotoExistiertLokal, fotoAlsDateiLaden, fotoRohSpeichern } from '../db/fotos'
+import {
+  fotoExistiertLokal,
+  fotoAlsDateiLaden,
+  fotoRohSpeichern,
+  fotoLoeschen,
+  fotoMitMiniaturLoeschen,
+} from '../db/fotos'
 import {
   syncDatenLesen,
   syncDatenSchreiben,
@@ -169,6 +175,22 @@ interface FotoAufgabe {
   quelle: 'lokal' | 'remote'
 }
 
+// Ein lokal aufzuräumendes, durch die Cloud-Version ersetztes Foto (Version
+// 1.51). Schließt eine bislang bewusst akzeptierte Lücke (siehe
+// Architekturkonzept, Abschnitt 3.3, "Bekannte Einschränkung"): Ersetzt man
+// ein Foto SELBST, wird die alte lokale Datei sauber gelöscht (siehe
+// filmAktualisierenHandler in App.tsx) - kommt die Ersetzung dagegen per
+// Sync von einem ANDEREN Gerät herein, blieb die alte lokale Datei bisher
+// einfach liegen. Für ein einzelnes ersetztes Foto kaum spürbar, bei einer
+// Sammel-Verkleinerung des gesamten Bestands (siehe
+// wartung/fotosVerkleinern.ts) auf einem anderen Gerät summiert sich das
+// dagegen schnell zu unnötigem, zusätzlichem Speicherverbrauch statt der
+// eigentlich gewünschten Einsparung.
+interface AltesLokalesFoto {
+  dateiname: string
+  istVorderseite: boolean
+}
+
 // Führt einen vollständigen Sync-Durchlauf aus: lädt lokalen und
 // entfernten Stand, führt sie pro Film zusammen, gleicht die betroffenen
 // Fotos ab, schreibt die "verlierenden" Filme lokal nach und schreibt den
@@ -193,6 +215,7 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
   const zusammengefuehrteFilme: Film[] = []
   const lokalZuAktualisieren: Film[] = []
   const fotoAufgaben: FotoAufgabe[] = []
+  const alteLokaleFotos: AltesLokalesFoto[] = []
   let anzahlAktualisiert = 0
 
   for (const id of alleIds) {
@@ -222,6 +245,26 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
     if (!letzterErfolgreicherSync || gewinner.zuletztGeaendert > letzterErfolgreicherSync) {
       fotoAufgaben.push({ dateiname: gewinner.fotoDateiname, quelle: gewinnerQuelle })
       fotoAufgaben.push({ dateiname: gewinner.fotoRueckseiteDateiname, quelle: gewinnerQuelle })
+
+      // Wird dabei ein bereits lokal vorhandenes Foto durch ein anderes aus
+      // der Cloud ersetzt, gilt die alte lokale Datei ab jetzt als verwaist
+      // (siehe AltesLokalesFoto oben) - tatsächlich gelöscht wird sie erst
+      // ganz am Ende, nachdem das neue Foto nachweislich erfolgreich
+      // heruntergeladen wurde (siehe unten). Bewusst NUR in diesem Zweig
+      // (nicht z. B. schon bei jedem "Remote gewinnt"): Nur hier steht dank
+      // der Watermark-Bedingung oben fest, dass die Foto-Prüfung für GENAU
+      // dieses Foto in diesem Durchlauf auch wirklich mit ausgeführt wird -
+      // ohne diese Einschränkung könnte (bei einem stark abweichenden
+      // Gerätezeitstempel, siehe letzterErfolgreicherSync oben) die alte
+      // Datei gelöscht werden, ohne dass die neue je heruntergeladen wurde.
+      if (lokal && gewinnerQuelle === 'remote') {
+        if (lokal.fotoDateiname && lokal.fotoDateiname !== gewinner.fotoDateiname) {
+          alteLokaleFotos.push({ dateiname: lokal.fotoDateiname, istVorderseite: true })
+        }
+        if (lokal.fotoRueckseiteDateiname && lokal.fotoRueckseiteDateiname !== gewinner.fotoRueckseiteDateiname) {
+          alteLokaleFotos.push({ dateiname: lokal.fotoRueckseiteDateiname, istVorderseite: false })
+        }
+      }
     }
 
     // Nur wenn die Cloud-Version gewonnen hat (oder der Film lokal noch gar
@@ -242,6 +285,21 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
   }
 
   await syncDatenSchreiben({ filme: zusammengefuehrteFilme })
+
+  // Erst jetzt, nachdem die neuen Fotos oben nachweislich erfolgreich
+  // heruntergeladen wurden (parallelMitObergrenze wäre sonst bereits mit
+  // einem Fehler abgebrochen, siehe unten), werden die durch sie ersetzten
+  // alten lokalen Fotos gelöscht (Version 1.51, siehe AltesLokalesFoto oben).
+  // fotoLoeschen/fotoMitMiniaturLoeschen sind bereits selbst tolerant
+  // gegenüber fehlenden Dateien, ein Fehlschlag hier ist daher unkritisch
+  // und wird bewusst nicht gesondert behandelt.
+  for (const altesFoto of alteLokaleFotos) {
+    if (altesFoto.istVorderseite) {
+      await fotoMitMiniaturLoeschen(altesFoto.dateiname)
+    } else {
+      await fotoLoeschen(altesFoto.dateiname)
+    }
+  }
 
   // Erst jetzt, nachdem wirklich jeder Schritt oben fehlerfrei durchgelaufen
   // ist, gilt dieser Sync als vollständig erfolgreich abgeschlossen (siehe

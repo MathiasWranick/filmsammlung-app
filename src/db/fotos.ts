@@ -12,6 +12,20 @@ export type FotoSeite = 'vorderseite' | 'rueckseite'
 // ausschließlich für die kompakte Kachel in der Filmliste gedacht ist.
 const MINIATUR_MAX_KANTE = 400
 
+// Lange Kante, auf die ein Foto beim Erfassen (siehe FilmFormular.tsx) sowie
+// bei der nachträglichen Verkleinerung des Bestands (Version 1.51, siehe
+// wartung/fotosVerkleinern.ts) verkleinert wird. Ursprünglich 1600px
+// (Version 1.36), ab Version 1.51 auf 1200px abgesenkt: Ein Praxistest
+// zeigte, dass manche Browser (konkret Opera, siehe Architekturkonzept,
+// Abschnitt 3.3) einer noch nicht installierten Website deutlich weniger
+// lokalen Speicher zugestehen als von navigator.storage.estimate()
+// gemeldet - bei der angestrebten Sammlungsgröße von ca. 1.000 Filmen macht
+// sich die Ersparnis pro Foto damit spürbar bemerkbar. An zentraler Stelle
+// hier definiert (statt z. B. lokal in FilmFormular.tsx), damit sowohl neu
+// erfasste als auch nachträglich verkleinerte Bestandsfotos garantiert
+// dieselbe Zielgröße verwenden.
+export const FOTO_MAX_KANTE = 1200
+
 async function fotosOrdner(): Promise<FileSystemDirectoryHandle> {
   const wurzel = await navigator.storage.getDirectory()
   return wurzel.getDirectoryHandle('fotos', { create: true })

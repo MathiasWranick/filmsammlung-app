@@ -50,3 +50,24 @@ export async function bildVerkleinern(datei: File, maxKante: number, qualitaet =
     bitmap.close()
   }
 }
+
+// Prüft nur, ob ein Foto die angegebene lange Kante überschreitet, ohne es
+// tatsächlich zu verkleinern (Version 1.51) - genutzt von der nachträglichen
+// Bestandsverkleinerung (siehe wartung/fotosVerkleinern.ts), um bereits
+// ausreichend kleine Fotos unangetastet zu lassen, statt sie unnötig neu zu
+// speichern (was sonst bei JEDEM Bestandsfoto einen neuen Dateinamen und
+// damit unnötigen Sync-Aufwand auslösen würde, siehe Version 1.49/1.50).
+export async function bildUeberschreitetKante(datei: File, maxKante: number): Promise<boolean> {
+  try {
+    const bitmap = await createImageBitmap(datei, { imageOrientation: 'from-image' })
+    const ueberschritten = Math.max(bitmap.width, bitmap.height) > maxKante
+    bitmap.close()
+    return ueberschritten
+  } catch (fehlerObjekt) {
+    // Kann das Bild nicht gelesen werden (sollte praktisch nie vorkommen),
+    // lieber unangetastet lassen als die gesamte Bestandsverkleinerung daran
+    // scheitern zu lassen.
+    console.error('Bildgröße konnte nicht geprüft werden, Foto bleibt unverändert:', fehlerObjekt)
+    return false
+  }
+}

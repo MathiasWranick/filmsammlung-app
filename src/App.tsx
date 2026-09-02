@@ -16,12 +16,14 @@ import { fotoSpeichern, fotoLoeschen, fotoMiniaturSpeichern, fotoMitMiniaturLoes
 import { sicherungWiederherstellen, type WiederherstellungsErgebnis } from './backup/backup'
 import { anmelden, abmelden, angemeldetesKontoLaden } from './auth/msal'
 import { synchronisieren } from './sync/sync'
+import { bestandsfotosVerkleinern, type VerkleinerungsErgebnis } from './wartung/fotosVerkleinern'
 import Abschnitt, { type StatusPunktFarbe } from './components/Abschnitt'
 import Datensicherung from './components/Datensicherung'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 import KontoLeiste from './components/KontoLeiste'
 import Overlay from './components/Overlay'
+import Speicherwartung from './components/Speicherwartung'
 import VerleihKatalog from './components/VerleihKatalog'
 import { BUILD_VERSION } from './version'
 
@@ -333,6 +335,22 @@ function App() {
     return ergebnis
   }
 
+  // Nachträgliche Verkleinerung der Bestandsfotos (Version 1.51, siehe
+  // wartung/fotosVerkleinern.ts) - gleiches Prinzip wie bei der
+  // Wiederherstellung aus einer Datensicherung oben: Die eigentliche Arbeit
+  // steckt im Wartungs-Modul, hier kommen nur die beiden Schritte dazu, die
+  // nach jeder anderen Datenänderung ebenfalls passieren (Filmliste neu
+  // laden, Sync anstoßen - damit die verkleinerten Fotos auch zu OneDrive
+  // hochgeladen werden).
+  async function bestandsfotosVerkleinernHandler(
+    fortschritt: (erledigt: number, gesamt: number) => void,
+  ): Promise<VerkleinerungsErgebnis> {
+    const ergebnis = await bestandsfotosVerkleinern(fortschritt)
+    await filmeNeuLaden()
+    syncAusfuehren()
+    return ergebnis
+  }
+
   // Suche/Filter laufen rein im Speicher über die bereits geladenen Filme -
   // bei ~1.000 Filmen (Zielgröße laut Architekturkonzept) ist das
   // performant genug, ganz ohne zusätzliche Datenbank-Abfragen.
@@ -428,6 +446,8 @@ function App() {
         />
         <hr className="verwaltung-trenner" />
         <Datensicherung onWiederherstellen={sicherungWiederherstellenHandler} />
+        <hr className="verwaltung-trenner" />
+        <Speicherwartung onBestandsfotosVerkleinern={bestandsfotosVerkleinernHandler} />
         <hr className="verwaltung-trenner" />
         <VerleihKatalog />
       </Abschnitt>

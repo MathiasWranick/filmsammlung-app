@@ -70,6 +70,24 @@ body {
   gap: 0.5rem;
 }
 
+.speicherwartung {
+  /* Version 1.51 - Foto-Speicherwartung (Bestandsverkleinerung, OneDrive-
+     Übersicht/Aufräumen), ebenfalls Baustein innerhalb von "Verwaltung".
+     Zwei Zeilen (je eine pro Aktion) statt einer einzelnen wie bei
+     .datensicherung/.verleih-katalog, da hier zusätzlich pro Aktion eigene
+     Ergebnistexte dazukommen können. */
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.speicherwartung-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Wiederverwendbarer, einheitlich großer Button-Stil für alle
    "administrativen" Aktionen (Synchronisieren, Abmelden, Datensicherung,
    Filter zurücksetzen) - löst das Nutzer-Feedback, dass Buttons im

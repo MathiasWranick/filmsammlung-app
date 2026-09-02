@@ -20,6 +20,15 @@ async function graphAnfrage(pfad: string, optionen: RequestInit = {}): Promise<R
   })
 }
 
+// Wie graphAnfrage, aber für eine bereits vollständige URL statt eines
+// relativen Pfads - gebraucht für die Seiten 2+ einer paginierten Antwort
+// (siehe fotosOrdnerAuflisten unten), deren "@odata.nextLink" von Microsoft
+// Graph bereits als vollständige URL geliefert wird.
+async function graphAnfrageAbsolut(url: string): Promise<Response> {
+  const token = await zugriffstokenHolen()
+  return fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+}
+
 // Liest die zentrale Sync-Datei ("filme.json") aus dem App-Ordner. Gibt
 // "null" zurück, wenn die Datei noch nicht existiert (z. B. beim allerersten
 // Sync von einem neuen Gerät aus) - das ist kein Fehler, sondern der
@@ -90,4 +99,67 @@ export async function fotoHochladen(dateiname: string, datei: Blob): Promise<voi
     body: datei,
   })
   if (!hochladenAntwort.ok) throw new Error(`Foto-Upload fehlgeschlagen (Fehlercode ${hochladenAntwort.status}).`)
+}
+
+export interface OneDriveFotoEintrag {
+  name: string
+  groesseBytes: number
+}
+
+// Listet ALLE Dateien im Foto-Ordner des App-Ordners auf (Version 1.51) -
+// im Unterschied zu den obigen Funktionen, die gezielt einzelne, bereits
+// bekannte Dateinamen ansprechen, wird hier erstmals der komplette
+// Ordnerinhalt abgefragt. Gebraucht für die neue Speicherübersicht/
+// Aufräum-Funktion (siehe wartung/oneDriveAufraeumen.ts), die verwaiste,
+// nicht mehr referenzierte Fotos erkennen soll. Microsoft Graph liefert
+// Ordnerinhalte seitenweise (siehe "$top", hier bewusst niedrig gehalten
+// nur als Hinweis an Graph, keine feste Grenze) - deshalb wird dem
+// "@odata.nextLink" der Antwort gefolgt, bis wirklich alle Seiten gelesen
+// sind.
+export async function fotosOrdnerAuflisten(): Promise<OneDriveFotoEintrag[]> {
+  const eintraege: OneDriveFotoEintrag[] = []
+  let naechsteUrl: string | null = null
+  let ersteAnfrage = true
+
+  while (ersteAnfrage || naechsteUrl) {
+    const antwort: Response = ersteAnfrage
+      ? await graphAnfrage('/me/drive/special/approot:/fotos:/children?$select=name,size&$top=200')
+      : await graphAnfrageAbsolut(naechsteUrl as string)
+    ersteAnfrage = false
+
+    // Der Foto-Ordner existiert noch gar nicht - z. B. eine brandneue
+    // Sammlung ohne einen einzigen bereits hochgeladenen Film. Dann gibt es
+    // schlicht nichts aufzulisten, kein Fehlerfall.
+    if (antwort.status === 404) return eintraege
+    if (!antwort.ok) throw new Error(`OneDrive-Ordnerabfrage fehlgeschlagen (Fehlercode ${antwort.status}).`)
+
+    const seite = (await antwort.json()) as {
+      value: { name: string; size: number }[]
+      '@odata.nextLink'?: string
+    }
+    for (const eintrag of seite.value) {
+      eintraege.push({ name: eintrag.name, groesseBytes: eintrag.size })
+    }
+    naechsteUrl = seite['@odata.nextLink'] ?? null
+  }
+
+  return eintraege
+}
+
+// Löscht eine einzelne Datei aus dem Foto-Ordner - gebraucht von der
+// Aufräum-Funktion für verwaiste Fotos (Version 1.51, siehe
+// wartung/oneDriveAufraeumen.ts). Microsoft Graph verschiebt gelöschte
+// Dateien standardmäßig in den regulären OneDrive-Papierkorb (wie beim
+// Löschen über die OneDrive-Weboberfläche) - nichts geht damit sofort
+// unwiderruflich verloren. Eine bereits fehlende Datei (Fehlercode 404,
+// z. B. bei einem zweiten Versuch nach einem zwischenzeitlichen Teilerfolg)
+// gilt hier bewusst nicht als Fehler - das Ziel (Datei ist weg) ist ja
+// bereits erreicht.
+export async function fotoInOneDriveLoeschen(dateiname: string): Promise<void> {
+  const antwort = await graphAnfrage(`/me/drive/special/approot:/fotos/${encodeURIComponent(dateiname)}`, {
+    method: 'DELETE',
+  })
+  if (!antwort.ok && antwort.status !== 404) {
+    throw new Error(`Löschen von "${dateiname}" in OneDrive fehlgeschlagen (Fehlercode ${antwort.status}).`)
+  }
 }
