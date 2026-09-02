@@ -60,9 +60,16 @@ export async function angemeldetesKontoLaden(): Promise<AccountInfo | null> {
 // zuverlässig, wenn direkt durch einen Klick ausgelöst (sonst blockieren
 // Browser das Popup als vermeintliche Werbung) - deshalb immer unmittelbar
 // aus einem Button-Klick heraus aufrufen, nie verzögert/automatisch.
+//
+// "prompt: 'select_account'" (Version 1.50) erzwingt dabei immer eine
+// aktive Kontoauswahl, statt dass der Browser (beobachtet bei Edge unter
+// Windows) das Anmeldefenster per Single-Sign-On automatisch und unbemerkt
+// mit dem gerade am Rechner angemeldeten Windows-Konto ausfüllt - das kann
+// ein völlig anderes Konto sein als das, dessen OneDrive die Sammlung
+// enthält (siehe Architekturkonzept, Änderungshistorie Version 1.50).
 export async function anmelden(): Promise<AccountInfo> {
   await sicherstellenInitialisiert()
-  const ergebnis = await msalInstanz.loginPopup({ scopes: BENOETIGTE_BERECHTIGUNGEN })
+  const ergebnis = await msalInstanz.loginPopup({ scopes: BENOETIGTE_BERECHTIGUNGEN, prompt: 'select_account' })
   return ergebnis.account
 }
 

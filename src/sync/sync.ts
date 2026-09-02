@@ -52,6 +52,7 @@
 //    1.000 Filme) das Risiko einer Anfragen-Drosselung durch Microsoft
 //    Graph bergen.
 
+import { angemeldetesKontoLaden } from '../auth/msal'
 import { filmeFuerSyncLaden, filmeSyncStapelSchreiben, type Film } from '../db/filme'
 import { fotoExistiertLokal, fotoAlsDateiLaden, fotoRohSpeichern } from '../db/fotos'
 import {
@@ -77,22 +78,36 @@ function istSyncDaten(wert: unknown): wert is SyncDaten {
 // Dateianfang. Ebenfalls bewusst rein lokal je Gerät (localStorage, nicht
 // über den Sync geteilt): Der Wert soll ausschließlich beschreiben, was
 // DIESES Gerät zuletzt selbst bestätigt bekommen hat.
-const LETZTER_ERFOLGREICHER_SYNC_SPEICHERSCHLUESSEL = 'filmsammlung-letzter-erfolgreicher-sync'
+//
+// Seit Version 1.50 bewusst je Microsoft-Konto getrennt (Schlüssel enthält
+// die stabile Konto-ID) statt ein einziger, globaler Wert: Ein Praxistest
+// zeigte, dass sich sonst ein (versehentlich per Windows-Single-Sign-On
+// verbundenes) FALSCHES Konto und das eigentlich richtige Konto denselben
+// Zeitpunkt "teilten" - ein technisch fehlerfrei durchgelaufener Sync gegen
+// das falsche, leere Konto wurde dadurch fälschlich auch als Bestätigung
+// für das richtige Konto gewertet, wodurch dort tatsächlich fehlende Fotos
+// übersehen (nicht heruntergeladen) wurden. Getrennte Zeitpunkte je Konto
+// schließen das aus: Ein Sync gegen ein Konto kann jetzt nie mehr fälschlich
+// für ein anderes Konto "bürgen". Siehe Architekturkonzept, Änderungs-
+// historie Version 1.50.
+function letzterErfolgreicherSyncSpeicherschluessel(kontoId: string): string {
+  return `filmsammlung-letzter-erfolgreicher-sync:${kontoId}`
+}
 
 // In try/catch, weil manche Browser (z. B. Safari im privaten Modus) den
 // Zugriff auf localStorage verweigern können - dann greift einfach der
 // sichere Normalfall (alle Fotos werden geprüft, siehe synchronisieren()).
-function letzterErfolgreicherSyncLesen(): string | null {
+function letzterErfolgreicherSyncLesen(kontoId: string): string | null {
   try {
-    return window.localStorage.getItem(LETZTER_ERFOLGREICHER_SYNC_SPEICHERSCHLUESSEL)
+    return window.localStorage.getItem(letzterErfolgreicherSyncSpeicherschluessel(kontoId))
   } catch {
     return null
   }
 }
 
-function letzterErfolgreicherSyncSchreiben(zeitpunkt: string): void {
+function letzterErfolgreicherSyncSchreiben(kontoId: string, zeitpunkt: string): void {
   try {
-    window.localStorage.setItem(LETZTER_ERFOLGREICHER_SYNC_SPEICHERSCHLUESSEL, zeitpunkt)
+    window.localStorage.setItem(letzterErfolgreicherSyncSpeicherschluessel(kontoId), zeitpunkt)
   } catch {
     // Persistenz ist nur eine Optimierung - schlägt sie fehl, prüft der
     // nächste Sync-Versuch einfach wieder alle Fotos (sicherer Normalfall).
@@ -159,6 +174,13 @@ interface FotoAufgabe {
 // Fotos ab, schreibt die "verlierenden" Filme lokal nach und schreibt den
 // zusammengeführten Gesamtstand zurück nach OneDrive.
 export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }> {
+  // Das Konto wird gezielt ZUERST geladen (siehe letzterErfolgreicherSync-
+  // Speicherschluessel oben, Version 1.50): Die Fotoprüfungs-Optimierung
+  // unten hängt an der Konto-ID, ohne bekanntes Konto darf sie also gar
+  // nicht erst greifen.
+  const konto = await angemeldetesKontoLaden()
+  if (!konto) throw new Error('Nicht bei Microsoft angemeldet.')
+
   const [lokaleFilme, remoteDatenRoh] = await Promise.all([filmeFuerSyncLaden(), syncDatenLesen()])
   const remoteFilme = istSyncDaten(remoteDatenRoh) ? remoteDatenRoh.filme : []
 
@@ -166,7 +188,7 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
   const remoteNachId = new Map(remoteFilme.map((film) => [film.id, film]))
   const alleIds = new Set([...lokalNachId.keys(), ...remoteNachId.keys()])
 
-  const letzterErfolgreicherSync = letzterErfolgreicherSyncLesen()
+  const letzterErfolgreicherSync = letzterErfolgreicherSyncLesen(konto.homeAccountId)
 
   const zusammengefuehrteFilme: Film[] = []
   const lokalZuAktualisieren: Film[] = []
@@ -224,7 +246,7 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
   // Erst jetzt, nachdem wirklich jeder Schritt oben fehlerfrei durchgelaufen
   // ist, gilt dieser Sync als vollständig erfolgreich abgeschlossen (siehe
   // letzterErfolgreicherSyncSchreiben() und Erläuterung am Dateianfang).
-  letzterErfolgreicherSyncSchreiben(new Date().toISOString())
+  letzterErfolgreicherSyncSchreiben(konto.homeAccountId, new Date().toISOString())
 
   return { anzahlAktualisiert }
 }
