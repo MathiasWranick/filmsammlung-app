@@ -23,6 +23,17 @@
 // falschen Anzeigen - eine Bereinigung kann bei Bedarf als späterer,
 // kleiner Ausbauschritt nachgerüstet werden.
 //
+// Version 1.53 - die von OneDrive gelesenen Rohdaten werden jetzt zusätzlich
+// als blankes Array akzeptiert (nicht nur als Objekt mit "filme"-Feld) -
+// siehe remoteFilmeAusRohdaten() unten. Hintergrund: Genau dieses Array-
+// Format erzeugt auch die Datensicherung (backup/backup.ts), und ein Nutzer
+// wollte im Notfall (vermutete beschädigte OneDrive-Datenbank) genau diese
+// Backup-JSON von Hand direkt als OneDrive-Sync-Datei hochladen - naheliegend,
+// da sie ja bereits den vollständigen Bestand enthält. Ohne diese Toleranz
+// wurde das schlicht wie "noch keine Cloud-Daten vorhanden" behandelt (siehe
+// remoteFilmeAusRohdaten() für die technische Erläuterung) - unschädlich,
+// aber eben nicht das erwartete, sofort korrekt erkannte Verhalten.
+//
 // Version 1.52 - zwei Korrekturen, ausgelöst durch einen dauerhaft
 // fehlschlagenden Erst-Sync (leere lokale Datenbank, z. B. Opera):
 //
@@ -103,6 +114,28 @@ interface SyncDaten {
 
 function istSyncDaten(wert: unknown): wert is SyncDaten {
   return typeof wert === 'object' && wert !== null && Array.isArray((wert as SyncDaten).filme)
+}
+
+// Liest die Filmliste aus den rohen, von OneDrive gelesenen Daten - seit
+// Version 1.53 zusätzlich tolerant gegenüber einem blanken Array (ohne
+// umschließendes "filme"-Feld), weil genau dieses Format auch die
+// Datensicherung erzeugt (siehe backup/backup.ts, "filme.json" in der ZIP -
+// bewusst ein reines Array, u. a. damit eine komplett lokale Wiederher-
+// stellung ganz ohne OneDrive möglich bleibt). Hintergrund: Ein Praxisfall
+// zeigte, dass ein Nutzer im Notfall (vermutete beschädigte OneDrive-
+// Datenbank) genau diese Backup-JSON von Hand direkt als OneDrive-Sync-Datei
+// hochladen wollte - naheliegend, schließlich enthält sie ja bereits den
+// vollständigen Datenbestand. Ohne diese Toleranz erkannte die App das
+// (technisch andersartig geformte) Ergebnis nicht als gültige Sync-Daten und
+// behandelte es sicherheitshalber wie "noch keine Cloud-Daten vorhanden" -
+// technisch unschädlich (siehe unten, ein Sync-Durchlauf "heilt" das von
+// selbst wieder, da am Ende ohnehin immer im Objekt-Format zurückgeschrieben
+// wird), aber eben nicht das erwartete, sofort korrekt erkannte Verhalten.
+// Das Backup-Format selbst bleibt davon unverändert.
+function remoteFilmeAusRohdaten(wert: unknown): Film[] {
+  if (Array.isArray(wert)) return wert as Film[]
+  if (istSyncDaten(wert)) return wert.filme
+  return []
 }
 
 // Speicherschlüssel für den Zeitpunkt des letzten vollständig erfolgreich
@@ -239,7 +272,7 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number; a
   if (!konto) throw new Error('Nicht bei Microsoft angemeldet.')
 
   const [lokaleFilme, remoteDatenRoh] = await Promise.all([filmeFuerSyncLaden(), syncDatenLesen()])
-  const remoteFilme = istSyncDaten(remoteDatenRoh) ? remoteDatenRoh.filme : []
+  const remoteFilme = remoteFilmeAusRohdaten(remoteDatenRoh)
 
   const lokalNachId = new Map(lokaleFilme.map((film) => [film.id, film]))
   const remoteNachId = new Map(remoteFilme.map((film) => [film.id, film]))
