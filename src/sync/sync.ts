@@ -23,6 +23,34 @@
 // falschen Anzeigen - eine Bereinigung kann bei Bedarf als späterer,
 // kleiner Ausbauschritt nachgerüstet werden.
 //
+// Version 1.52 - zwei Korrekturen, ausgelöst durch einen dauerhaft
+// fehlschlagenden Erst-Sync (leere lokale Datenbank, z. B. Opera):
+//
+// 1. Für bereits gelöschte Filme (geloeschtAm gesetzt, "Grabstein" - siehe
+//    Kommentar oben) wurde bislang trotzdem versucht, das zugehörige Foto zu
+//    prüfen/herunterzuladen, obwohl ein gelöschter Film nirgends mehr
+//    angezeigt wird und sein Foto folglich niemand mehr braucht. Bis
+//    Version 1.51 fiel das nie auf, weil das Foto ja ohnehin noch in
+//    OneDrive lag - seit es die Aufräum-Funktion für verwaiste Fotos gibt
+//    (wartung/oneDriveAufraeumen.ts, die Fotos gelöschter Filme bewusst als
+//    verwaist einstuft und entfernen darf), kann genau dieses Foto inzwischen
+//    aber tatsächlich fehlen. Ein einzelner gelöschter Film mit fehlendem
+//    Foto blockierte dadurch den KOMPLETTEN Sync - und zwar dauerhaft, weil
+//    sich an der fehlenden Datei ja nichts ändert und der Fehler bei jedem
+//    weiteren Versuch identisch wiederkehrt. Foto-Prüfungen laufen deshalb ab
+//    sofort nur noch für Filme, die (im jeweiligen Sync-Durchlauf) NICHT als
+//    gelöscht gelten.
+// 2. Unabhängig davon, als zusätzliche Absicherung für jeden anderen,
+//    unvorhergesehenen Fall: Ein einzelnes fehlgeschlagenes Foto (Download
+//    oder Upload) bricht den Sync nicht mehr komplett ab, sondern wird
+//    übersprungen und gezählt (gleiches Prinzip wie bei Datensicherung,
+//    Bestands-Verkleinerung und OneDrive-Aufräumen). Der "letzter
+//    erfolgreicher Sync"-Zeitstempel (siehe unten) wird dabei bewusst NUR
+//    gesetzt, wenn wirklich jedes Foto in diesem Durchlauf geglückt ist -
+//    sonst würde das betroffene Foto beim nächsten Sync fälschlich als
+//    "schon geprüft" übersprungen und die Lücke bliebe unbemerkt dauerhaft
+//    bestehen. Siehe Architekturkonzept, Änderungshistorie Version 1.52.
+//
 // Version 1.49 - zwei Verbesserungen gegen einen vom Nutzer als spürbar
 // langsam gemeldeten Sync bei größerer Sammlung:
 //
@@ -186,16 +214,23 @@ interface FotoAufgabe {
 // wartung/fotosVerkleinern.ts) auf einem anderen Gerät summiert sich das
 // dagegen schnell zu unnötigem, zusätzlichem Speicherverbrauch statt der
 // eigentlich gewünschten Einsparung.
+// "neuerDateiname" ist das Foto, das die alte Datei ersetzt - ist es
+// gesetzt, darf die alte Datei erst gelöscht werden, wenn feststeht, dass
+// genau dieser Download auch wirklich geglückt ist (siehe fehlgeschlagene-
+// Dateien-Prüfung weiter unten, Version 1.52). Ist es NICHT gesetzt (Rück-
+// seite wurde komplett entfernt statt ersetzt), gibt es nichts abzuwarten -
+// dann darf sofort aufgeräumt werden, wie schon bisher.
 interface AltesLokalesFoto {
   dateiname: string
   istVorderseite: boolean
+  neuerDateiname: string | undefined
 }
 
 // Führt einen vollständigen Sync-Durchlauf aus: lädt lokalen und
 // entfernten Stand, führt sie pro Film zusammen, gleicht die betroffenen
 // Fotos ab, schreibt die "verlierenden" Filme lokal nach und schreibt den
 // zusammengeführten Gesamtstand zurück nach OneDrive.
-export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }> {
+export async function synchronisieren(): Promise<{ anzahlAktualisiert: number; anzahlFotoFehler: number }> {
   // Das Konto wird gezielt ZUERST geladen (siehe letzterErfolgreicherSync-
   // Speicherschluessel oben, Version 1.50): Die Fotoprüfungs-Optimierung
   // unten hängt an der Konto-ID, ohne bekanntes Konto darf sie also gar
@@ -241,8 +276,15 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
 
     // Foto-Prüfung nur für Filme, die seit dem letzten vollständig
     // erfolgreichen Sync (auf irgendeinem Gerät) neu hinzugekommen oder
-    // geändert wurden - siehe ausführliche Erläuterung am Dateianfang.
-    if (!letzterErfolgreicherSync || gewinner.zuletztGeaendert > letzterErfolgreicherSync) {
+    // geändert wurden - siehe ausführliche Erläuterung am Dateianfang. Und
+    // (Version 1.52) NICHT für bereits gelöschte Filme ("Grabsteine") - ihr
+    // Foto wird nirgends mehr angezeigt und kann inzwischen durch die
+    // OneDrive-Aufräum-Funktion (siehe wartung/oneDriveAufraeumen.ts)
+    // durchaus schon entfernt worden sein. Ohne diese Ausnahme würde ein
+    // einzelner gelöschter Film mit fehlendem Foto den Sync unnötig
+    // ausbremsen bzw. (vor der zusätzlichen Fehlertoleranz unten) sogar
+    // komplett blockieren.
+    if ((!letzterErfolgreicherSync || gewinner.zuletztGeaendert > letzterErfolgreicherSync) && !gewinner.geloeschtAm) {
       fotoAufgaben.push({ dateiname: gewinner.fotoDateiname, quelle: gewinnerQuelle })
       fotoAufgaben.push({ dateiname: gewinner.fotoRueckseiteDateiname, quelle: gewinnerQuelle })
 
@@ -250,19 +292,24 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
       // der Cloud ersetzt, gilt die alte lokale Datei ab jetzt als verwaist
       // (siehe AltesLokalesFoto oben) - tatsächlich gelöscht wird sie erst
       // ganz am Ende, nachdem das neue Foto nachweislich erfolgreich
-      // heruntergeladen wurde (siehe unten). Bewusst NUR in diesem Zweig
-      // (nicht z. B. schon bei jedem "Remote gewinnt"): Nur hier steht dank
-      // der Watermark-Bedingung oben fest, dass die Foto-Prüfung für GENAU
+      // heruntergeladen wurde (siehe unten, Prüfung gegen
+      // "fehlgeschlageneDateien"). Bewusst NUR in diesem Zweig (nicht z. B.
+      // schon bei jedem "Remote gewinnt"): Nur hier steht dank der
+      // Watermark-Bedingung oben fest, dass die Foto-Prüfung für GENAU
       // dieses Foto in diesem Durchlauf auch wirklich mit ausgeführt wird -
       // ohne diese Einschränkung könnte (bei einem stark abweichenden
       // Gerätezeitstempel, siehe letzterErfolgreicherSync oben) die alte
       // Datei gelöscht werden, ohne dass die neue je heruntergeladen wurde.
       if (lokal && gewinnerQuelle === 'remote') {
         if (lokal.fotoDateiname && lokal.fotoDateiname !== gewinner.fotoDateiname) {
-          alteLokaleFotos.push({ dateiname: lokal.fotoDateiname, istVorderseite: true })
+          alteLokaleFotos.push({ dateiname: lokal.fotoDateiname, istVorderseite: true, neuerDateiname: gewinner.fotoDateiname })
         }
         if (lokal.fotoRueckseiteDateiname && lokal.fotoRueckseiteDateiname !== gewinner.fotoRueckseiteDateiname) {
-          alteLokaleFotos.push({ dateiname: lokal.fotoRueckseiteDateiname, istVorderseite: false })
+          alteLokaleFotos.push({
+            dateiname: lokal.fotoRueckseiteDateiname,
+            istVorderseite: false,
+            neuerDateiname: gewinner.fotoRueckseiteDateiname,
+          })
         }
       }
     }
@@ -276,9 +323,22 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
     }
   }
 
-  await parallelMitObergrenze(fotoAufgaben, GLEICHZEITIGKEIT_FOTOS, (aufgabe) =>
-    fotoAbgleichen(aufgabe.dateiname, aufgabe.quelle),
-  )
+  // Version 1.52: Ein einzelnes fehlgeschlagenes Foto bricht den Sync nicht
+  // mehr komplett ab (siehe Erläuterung am Dateianfang) - der Fehler wird
+  // stattdessen protokolliert, das betroffene Foto in "fehlgeschlageneDateien"
+  // vermerkt, und mit den übrigen Aufgaben normal weitergemacht.
+  const fehlgeschlageneDateien = new Set<string>()
+  let anzahlFotoFehler = 0
+
+  await parallelMitObergrenze(fotoAufgaben, GLEICHZEITIGKEIT_FOTOS, async (aufgabe) => {
+    try {
+      await fotoAbgleichen(aufgabe.dateiname, aufgabe.quelle)
+    } catch (fehlerObjekt) {
+      console.error(`Foto "${aufgabe.dateiname ?? '(kein Dateiname)'}" konnte nicht abgeglichen werden - wird übersprungen:`, fehlerObjekt)
+      if (aufgabe.dateiname) fehlgeschlageneDateien.add(aufgabe.dateiname)
+      anzahlFotoFehler += 1
+    }
+  })
 
   if (lokalZuAktualisieren.length > 0) {
     await filmeSyncStapelSchreiben(lokalZuAktualisieren)
@@ -286,14 +346,19 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
 
   await syncDatenSchreiben({ filme: zusammengefuehrteFilme })
 
-  // Erst jetzt, nachdem die neuen Fotos oben nachweislich erfolgreich
-  // heruntergeladen wurden (parallelMitObergrenze wäre sonst bereits mit
-  // einem Fehler abgebrochen, siehe unten), werden die durch sie ersetzten
-  // alten lokalen Fotos gelöscht (Version 1.51, siehe AltesLokalesFoto oben).
+  // Die durch ein neues Foto ersetzten alten lokalen Fotos werden jetzt
+  // aufgeräumt (Version 1.51, siehe AltesLokalesFoto oben) - aber (Version
+  // 1.52) nur, wenn das ersetzende neue Foto auch nachweislich NICHT in
+  // "fehlgeschlageneDateien" steht. Ohne diese Prüfung könnte (jetzt, wo ein
+  // einzelner Download-Fehler den Sync nicht mehr abbricht) die alte Datei
+  // gelöscht werden, obwohl die neue nie erfolgreich heruntergeladen wurde -
+  // derselbe Datenverlust-Fall, den schon die Watermark-Bedingung oben
+  // verhindern soll, hier nur durch die neue Fehlertoleranz ausgelöst.
   // fotoLoeschen/fotoMitMiniaturLoeschen sind bereits selbst tolerant
   // gegenüber fehlenden Dateien, ein Fehlschlag hier ist daher unkritisch
   // und wird bewusst nicht gesondert behandelt.
   for (const altesFoto of alteLokaleFotos) {
+    if (altesFoto.neuerDateiname && fehlgeschlageneDateien.has(altesFoto.neuerDateiname)) continue
     if (altesFoto.istVorderseite) {
       await fotoMitMiniaturLoeschen(altesFoto.dateiname)
     } else {
@@ -301,10 +366,17 @@ export async function synchronisieren(): Promise<{ anzahlAktualisiert: number }>
     }
   }
 
-  // Erst jetzt, nachdem wirklich jeder Schritt oben fehlerfrei durchgelaufen
-  // ist, gilt dieser Sync als vollständig erfolgreich abgeschlossen (siehe
-  // letzterErfolgreicherSyncSchreiben() und Erläuterung am Dateianfang).
-  letzterErfolgreicherSyncSchreiben(konto.homeAccountId, new Date().toISOString())
+  // Der "letzter erfolgreicher Sync"-Zeitstempel wird bewusst NUR gesetzt,
+  // wenn wirklich JEDES Foto in diesem Durchlauf geglückt ist (Version 1.52,
+  // siehe Erläuterung am Dateianfang) - sonst würde ein weiterhin
+  // fehlschlagendes Foto beim nächsten Sync fälschlich als "schon geprüft"
+  // übersprungen und die Lücke bliebe unbemerkt dauerhaft bestehen. Der Sync
+  // als Ganzes gilt trotzdem als abgeschlossen (kein throw) - nur eben mit
+  // einer Foto-Lücke, die beim nächsten Versuch automatisch erneut geprüft
+  // wird.
+  if (anzahlFotoFehler === 0) {
+    letzterErfolgreicherSyncSchreiben(konto.homeAccountId, new Date().toISOString())
+  }
 
-  return { anzahlAktualisiert }
+  return { anzahlAktualisiert, anzahlFotoFehler }
 }

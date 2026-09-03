@@ -100,11 +100,20 @@ function App() {
     setKontoFehler(null)
     try {
       const ergebnis = await synchronisieren()
-      setSyncHinweis(
+      let hinweis =
         ergebnis.anzahlAktualisiert > 0
           ? `Zuletzt synchronisiert: ${ergebnis.anzahlAktualisiert} Film(e) aktualisiert.`
-          : 'Zuletzt synchronisiert: alles aktuell.',
-      )
+          : 'Zuletzt synchronisiert: alles aktuell.'
+      // Version 1.52: Der Sync kann jetzt auch mit einzelnen übersprungenen
+      // Fotos "erfolgreich" zurückkommen (statt komplett abzubrechen, siehe
+      // sync/sync.ts) - das wird hier sichtbar gemacht, statt es stillschweigend
+      // unter den Tisch fallen zu lassen. Kein echter Fehlerzustand (kein
+      // setKontoFehler), da der Rest des Syncs ja geglückt ist und das
+      // betroffene Foto beim nächsten Sync automatisch erneut versucht wird.
+      if (ergebnis.anzahlFotoFehler > 0) {
+        hinweis += ` Achtung: ${ergebnis.anzahlFotoFehler} Foto(s) konnten dabei nicht übertragen werden (Details siehe Konsole) - wird automatisch erneut versucht.`
+      }
+      setSyncHinweis(hinweis)
       await filmeNeuLaden()
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)
