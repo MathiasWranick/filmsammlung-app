@@ -14,7 +14,7 @@ import {
 } from './db/filme'
 import { fotoSpeichern, fotoLoeschen, fotoMiniaturSpeichern, fotoMitMiniaturLoeschen } from './db/fotos'
 import { sicherungWiederherstellen, type WiederherstellungsErgebnis } from './backup/backup'
-import { anmelden, abmelden, angemeldetesKontoLaden } from './auth/msal'
+import { anmelden, abmelden, angemeldetesKontoLaden, mitNutzerInteraktion, AnmeldungErforderlichFehler } from './auth/msal'
 import { synchronisieren } from './sync/sync'
 import { bestandsfotosVerkleinern, type VerkleinerungsErgebnis } from './wartung/fotosVerkleinern'
 import Abschnitt, { type StatusPunktFarbe } from './components/Abschnitt'
@@ -117,25 +117,42 @@ function App() {
       await filmeNeuLaden()
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)
-      setKontoFehler(
-        'Die Synchronisierung ist fehlgeschlagen. Wird bei der nächsten Gelegenheit automatisch erneut versucht.',
-      )
+      // Version 1.54: Eigene, klare Meldung für den Fall, dass die
+      // Anmeldung erneut bestätigt werden müsste, das aber automatisch
+      // (nicht durch einen direkten Klick, siehe mitNutzerInteraktion in
+      // auth/msal.ts) versucht wurde - fordert gezielt zu genau der
+      // Aktion auf, die das beheben kann, statt der allgemeinen Meldung.
+      if (fehlerObjekt instanceof AnmeldungErforderlichFehler) {
+        setKontoFehler(
+          'Die Anmeldung ist abgelaufen. Bitte einmal auf "Jetzt synchronisieren" klicken, um dich erneut anzumelden.',
+        )
+      } else {
+        setKontoFehler(
+          'Die Synchronisierung ist fehlgeschlagen. Wird bei der nächsten Gelegenheit automatisch erneut versucht.',
+        )
+      }
     } finally {
       setSyncLaeuft(false)
       syncAktivRef.current = false
     }
   }
 
+  // Version 1.54: anmelden() navigiert bei Erfolg vollständig weg zu
+  // Microsoft (siehe auth/msal.ts) - der Code nach dem await wird dann
+  // normalerweise gar nicht mehr erreicht (die Seite lädt nach der Rückkehr
+  // ohnehin komplett neu, und der useEffect weiter unten erkennt das neue
+  // Konto dann von selbst). Nur bei einem Fehler VOR der eigentlichen
+  // Weiterleitung (z. B. vom Browser blockiert) kommt die Ausführung
+  // hierher zurück. mitNutzerInteraktion() erlaubt dabei überhaupt erst,
+  // dass zugriffstokenHolen() später (beim ersten Sync danach) im
+  // Bedarfsfall ebenfalls per Weiterleitung statt automatisch fehlschlagen
+  // darf - unmittelbar um diesen direkten Button-Klick herum, wie
+  // vorgeschrieben.
   async function anmeldenHandler() {
     setKontoFehler(null)
     setAnmeldungLaeuft(true)
     try {
-      const kontoErgebnis = await anmelden()
-      setKonto(kontoErgebnis)
-      // Ref direkt setzen (nicht auf den nächsten Render warten), damit der
-      // gleich folgende Sync-Aufruf den frischen Anmeldestatus kennt.
-      kontoRef.current = kontoErgebnis
-      await syncAusfuehren()
+      await mitNutzerInteraktion(anmelden)
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)
       setKontoFehler('Die Anmeldung ist fehlgeschlagen oder wurde abgebrochen. Bitte nochmal versuchen.')
@@ -144,10 +161,15 @@ function App() {
     }
   }
 
+  // Version 1.54: abmelden() navigiert bei einem angemeldeten Konto ebenso
+  // vollständig weg (siehe auth/msal.ts) - die manuellen Zustands-Resets
+  // unten bleiben trotzdem als Absicherung stehen, für den Randfall, dass
+  // gar kein Konto (mehr) angemeldet war und abmelden() daher normal
+  // zurückkehrt, ohne wegzunavigieren.
   async function abmeldenHandler() {
     setKontoFehler(null)
     try {
-      await abmelden()
+      await mitNutzerInteraktion(abmelden)
       setKonto(null)
       kontoRef.current = null
       setSyncHinweis(null)
@@ -451,7 +473,7 @@ function App() {
           fehler={kontoFehler}
           onAnmelden={anmeldenHandler}
           onAbmelden={abmeldenHandler}
-          onSynchronisieren={syncAusfuehren}
+          onSynchronisieren={() => mitNutzerInteraktion(syncAusfuehren)}
         />
         <hr className="verwaltung-trenner" />
         <Datensicherung onWiederherstellen={sicherungWiederherstellenHandler} />

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { VerkleinerungsErgebnis } from '../wartung/fotosVerkleinern'
 import { oneDriveSpeicherPruefen, verwaisteOneDriveFotosLoeschen, type OneDriveUebersicht } from '../wartung/oneDriveAufraeumen'
+import { mitNutzerInteraktion } from '../auth/msal'
 
 interface Props {
   // Die eigentliche Verkleinerungslogik (siehe wartung/fotosVerkleinern.ts)
@@ -70,7 +71,10 @@ function Speicherwartung({ onBestandsfotosVerkleinern }: Props) {
     setAufraeumFehler(null)
     setWirdGeprueft(true)
     try {
-      setUebersicht(await oneDriveSpeicherPruefen())
+      // Direkter Button-Klick - erlaubt zugriffstokenHolen() im Bedarfsfall
+      // eine Weiterleitung zur erneuten Anmeldung (Version 1.54, siehe
+      // auth/msal.ts).
+      setUebersicht(await mitNutzerInteraktion(oneDriveSpeicherPruefen))
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)
       setPruefFehler('Die OneDrive-Speicherübersicht konnte nicht geladen werden (angemeldet und online?).')
@@ -97,7 +101,10 @@ function Speicherwartung({ onBestandsfotosVerkleinern }: Props) {
     setAufraeumHinweis(null)
     setWirdAufgeraeumt(true)
     try {
-      const ergebnis = await verwaisteOneDriveFotosLoeschen(uebersicht.verwaisteDateien)
+      // Direkter Button-Klick (nach vorheriger window.confirm-Bestätigung) -
+      // erlaubt beiden folgenden Aufrufen im Bedarfsfall eine Weiterleitung
+      // zur erneuten Anmeldung (Version 1.54, siehe auth/msal.ts).
+      const ergebnis = await mitNutzerInteraktion(() => verwaisteOneDriveFotosLoeschen(uebersicht.verwaisteDateien))
       setAufraeumHinweis(
         ergebnis.anzahlFehlgeschlagen > 0
           ? `${ergebnis.anzahlGeloescht} Datei(en) gelöscht, ${ergebnis.anzahlFehlgeschlagen} fehlgeschlagen (Details siehe Konsole).`
@@ -106,7 +113,7 @@ function Speicherwartung({ onBestandsfotosVerkleinern }: Props) {
       // Übersicht danach neu laden statt optimistisch anzunehmen, dass
       // wirklich alles wie erwartet gelöscht wurde - zeigt den tatsächlichen
       // neuen Stand, auch wenn oben einzelne Löschungen fehlgeschlagen sind.
-      setUebersicht(await oneDriveSpeicherPruefen())
+      setUebersicht(await mitNutzerInteraktion(oneDriveSpeicherPruefen))
     } catch (fehlerObjekt) {
       console.error(fehlerObjekt)
       setAufraeumFehler('Das Aufräumen ist fehlgeschlagen. Bitte nochmal versuchen.')
