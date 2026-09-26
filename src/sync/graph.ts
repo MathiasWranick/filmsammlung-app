@@ -1,12 +1,14 @@
 // Schlanke Anbindung an die Microsoft Graph API - beschränkt auf genau die
 // Aufrufe, die der OneDrive-Sync braucht (Ausbaustufe 1, Version 1.16).
-// Alle Pfade beziehen sich auf den App-Ordner der Anwendung
+// Alle Pfade beziehen sich bewusst auf den App-Ordner der Anwendung
 // ("/me/drive/special/approot:/...") statt auf die gesamte OneDrive-Ablage
-// des Nutzers - das ist die praktische Auswirkung der bei der
-// App-Registrierung gewählten Berechtigung "Files.ReadWrite.AppFolder"
-// (siehe Architekturkonzept, Abschnitt 3.3): Die App sieht und verändert
-// ausschließlich ihren eigenen, für den Nutzer unter "Apps/Filmsammlung"
-// sichtbaren Ordner.
+// des Nutzers: Die App liest/schreibt damit ausschließlich ihren eigenen,
+// für den Nutzer unter "Apps/Filmsammlung" sichtbaren Ordner - unabhängig
+// davon, wie weit die bei Microsoft angeforderte Berechtigung tatsächlich
+// reicht (siehe auth/msal.ts, BENOETIGTE_BERECHTIGUNGEN, sowie
+// Architekturkonzept, Abschnitt 3.3 und Änderungshistorie Version 1.55, zum
+// dortigen Unterschied zwischen angeforderter Berechtigung und tatsächlich
+// genutztem Pfad).
 
 import { zugriffstokenHolen } from '../auth/msal'
 

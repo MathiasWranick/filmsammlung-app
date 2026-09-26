@@ -26,12 +26,26 @@ const MSAL_KONFIGURATION = {
   },
 }
 
-// Berechtigung, die wir bei der App-Registrierung eingerichtet haben (siehe
-// Architekturkonzept, Abschnitt 3.3) - beschränkt den OneDrive-Zugriff
-// bewusst auf einen eigenen App-Ordner statt der gesamten Ablage.
+// Berechtigung für den Microsoft-Graph-Zugriff.
+//
+// Version 1.55: Umgestellt von der eigentlich passenderen, weil enger
+// gefassten Berechtigung "Files.ReadWrite.AppFolder" (beschränkt den Zugriff
+// auf einen eigenen App-Ordner statt der gesamten Ablage) auf die breitere
+// Berechtigung "Files.ReadWrite" - siehe Architekturkonzept,
+// Änderungshistorie Version 1.55, zum Hintergrund: Ein zum Zeitpunkt dieser
+// Änderung aktuelles, von Microsoft noch nicht behobenes Server-Problem
+// verhindert bei privaten Microsoft-Konten zuverlässig den Zugriff über
+// "Files.ReadWrite.AppFolder" (Graph-Fehler "invalidRequest"/"Invalid
+// request", HTTP 400, beim Lesen der Sync-Datei). Die App liest/schreibt im
+// Code weiterhin ausschließlich innerhalb ihres eigenen App-Ordners (siehe
+// sync/graph.ts, unverändert über "/me/drive/special/approot:..."-Pfade) -
+// die breitere Berechtigung ändert also nicht, WAS die App tut, nur WELCHEN
+// Namen die dafür nötige Erlaubnis bei Microsoft trägt. Sobald Microsoft das
+// Problem behebt, kann bei Bedarf wieder auf "Files.ReadWrite.AppFolder"
+// zurückgestellt werden (siehe dort vorgemerkte Option in Abschnitt 3.3).
 // "offline_access" muss hier nicht separat aufgeführt werden, MSAL fordert
 // es automatisch mit an.
-const BENOETIGTE_BERECHTIGUNGEN = ['Files.ReadWrite.AppFolder']
+const BENOETIGTE_BERECHTIGUNGEN = ['Files.ReadWrite']
 
 export const msalInstanz = new PublicClientApplication(MSAL_KONFIGURATION)
 
