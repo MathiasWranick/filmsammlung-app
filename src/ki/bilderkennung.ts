@@ -16,7 +16,16 @@
 // schwach für das genaue Lesen von Detailtext im Bild. "flash" (statt
 // "flash-lite") ist im Vergleich immer noch sehr günstig, aber deutlich
 // leistungsfähiger bei dieser Art Detailerkennung.
-const GEMINI_MODELL = 'gemini-3.5-flash'
+//
+// Version 1.61: Von "gemini-3.5-flash" auf "gemini-3.6-flash" umgestellt.
+// Google hat "gemini-3.5-flash" zum 8. Oktober 2026 eingestellt und leitet
+// seitdem ohnehin automatisch auf "gemini-3.6-flash" um (gleiches
+// Kontingent/Verhalten) - diese Änderung ändert also nichts am laufenden
+// Verhalten der App, macht aber den im Code hinterlegten Namen wieder
+// explizit, statt sich auf die automatische Umleitung zu verlassen, die
+// Google jederzeit abschalten könnte ("to minimize risk of future service
+// disruptions", siehe Google-Ankündigung zur Einstellung von 3.5 Flash).
+const GEMINI_MODELL = 'gemini-3.6-flash'
 
 export interface KiErkennungsErgebnis {
   titel?: string
