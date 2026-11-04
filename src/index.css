@@ -446,6 +446,27 @@ body {
   flex: 1;
 }
 
+/* Version 1.56: Eigenständiges, immer sichtbares Titel-Suchfeld oberhalb des
+   "Filter"-Abschnitts (siehe FilmListe.tsx zum Hintergrund - zuvor Teil der
+   ".filterleiste" unten, auf Nutzerwunsch herausgelöst, damit man dafür
+   nicht erst das komplette Filter-Menü aufklappen muss). Volle Breite und
+   etwas großzügigere Schriftgröße/Innenabstand als die übrigen Filterfelder
+   (die kompakt nebeneinander stehen) - hier ist das Suchfeld bewusst das
+   einzige, prominente Element in seiner Zeile. */
+.titelsuche {
+  margin-bottom: 0.75rem;
+}
+
+.titelsuche input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+}
+
 /* Seit Version 1.32 innerhalb des ein-/ausklappbaren "Filter"-Abschnitts
    (siehe Abschnitt.tsx) eingebettet - daher hier kein eigener Rahmen/Abstand
    mehr, das übernimmt ".abschnitt"/".abschnitt-body". */

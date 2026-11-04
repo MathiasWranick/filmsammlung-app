@@ -97,10 +97,18 @@ function filmeVergleichen(a: Film, b: Film, feld: Sortierfeld): number {
 // (FILTER_STANDARD) abweicht - wird als kleine Zahl im eingeklappten Kopf
 // des "Filter"-Abschnitts angezeigt (Version 1.32), damit trotz
 // eingeklapptem Zustand erkennbar bleibt, dass gerade eingegrenzt wird.
+//
+// Version 1.56: "suche" zählt hier bewusst NICHT mehr mit - das
+// Titel-Suchfeld wurde aus dem Filter-Abschnitt herausgelöst (siehe
+// Nutzer-Usability-Anforderung, eigenes Suchfeld unten in FilmListe) und ist
+// seitdem immer sichtbar, unabhängig vom Auf-/Zugeklappt-Zustand des
+// Filter-Abschnitts. Der Badge soll weiterhin nur anzeigen, was im
+// eingeklappten, gerade NICHT sichtbaren Teil aktiv eingrenzt - ob die Suche
+// aktiv ist, sieht man ja direkt am Suchfeld selbst.
 function filterAktivAnzahl(filter: Filterzustand): number {
-  return (Object.keys(FILTER_STANDARD) as (keyof Filterzustand)[]).filter(
-    (feld) => filter[feld] !== FILTER_STANDARD[feld],
-  ).length
+  return (Object.keys(FILTER_STANDARD) as (keyof Filterzustand)[])
+    .filter((feld) => feld !== 'suche')
+    .filter((feld) => filter[feld] !== FILTER_STANDARD[feld]).length
 }
 
 // Lädt die kleine Miniaturansicht des Vorderseiten-Fotos eines Films und
@@ -328,15 +336,29 @@ function FilmListe({
 
   return (
     <div>
+      {/* Version 1.56: Eigenständiges, immer sichtbares Titel-Suchfeld -
+          zuvor Teil des ein-/ausklappbaren "Filter"-Abschnitts unten (siehe
+          Änderungshistorie Version 1.32). Auf dem Handy musste man dafür
+          bisher erst das komplette Filter-Menü aufklappen, was praktisch den
+          ganzen Bildschirm verdeckte, nur um nach einem Titel zu suchen
+          (Nutzer-Usability-Anforderung). Bewusst außerhalb von Abschnitt
+          platziert statt als weiteres Feld darin - dadurch bleibt es
+          unabhängig vom Auf-/Zugeklappt-Zustand des Filter-Abschnitts immer
+          erreichbar. Nutzt weiterhin denselben "filter.suche"-Zustand wie
+          zuvor (siehe feldAendern/FILTER_STANDARD) - "Filter zurücksetzen"
+          unten leert daher wie bisher auch die Suche mit. */}
+      <div className="titelsuche">
+        <input
+          type="text"
+          value={filter.suche}
+          onChange={(ereignis) => feldAendern('suche', ereignis.target.value)}
+          placeholder="Titel suchen …"
+          aria-label="Titel suchen"
+        />
+      </div>
+
       <Abschnitt titel="Filter" symbol="▽" badge={filterAktivAnzahl(filter)}>
         <div className="filterleiste">
-          <input
-            type="text"
-            value={filter.suche}
-            onChange={(ereignis) => feldAendern('suche', ereignis.target.value)}
-            placeholder="Titel suchen …"
-          />
-
           <select value={filter.format} onChange={(ereignis) => feldAendern('format', ereignis.target.value as Format | '')}>
             <option value="">Alle Formate</option>
             {FORMATE.map((einzelnesFormat) => (
