@@ -52,6 +52,72 @@ body {
   color: #6b7280;
 }
 
+/* Version 1.59: Kopfzeile mit Titel ("h1", unverändert) und dem neuen
+   Schnellzugriff-Sync-Button nebeneinander (siehe App.tsx). flex-wrap sorgt
+   dafür, dass der Button auf sehr schmalen Bildschirmen notfalls in eine
+   eigene Zeile umbricht statt den Titel abzuschneiden - in der Praxis selten
+   nötig, da der Button deutlich schmaler als der Titel ist. */
+.kopfzeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.kopfzeile h1 {
+  margin: 0;
+}
+
+/* Gleiche Buttongröße/-optik wie die übrigen Icon-Buttons der App (siehe
+   ".film-aktionen button"/".ansicht-umschalter button"), damit sich der neue
+   Schnellzugriff-Button optisch einfügt statt wie ein Fremdkörper zu wirken. */
+.sync-schnellzugriff {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+  background: canvas;
+  color: canvastext;
+  cursor: pointer;
+}
+
+.sync-schnellzugriff svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* Dreht das Icon, solange ein Sync läuft (Klasse "dreht" wird in App.tsx nur
+   dann gesetzt) - ersetzt hier die Textänderung ("Synchronisiert …"), die
+   der große Button in KontoLeiste.tsx zur Rückmeldung nutzt: Für einen
+   reinen Icon-Button ohne sichtbaren Text ist eine Animation die passende
+   Entsprechung. prefers-reduced-motion respektiert dabei Nutzer, die
+   Bewegungseffekte reduziert haben möchten - der Button bleibt für sie
+   trotzdem über "disabled" erkennbar als "läuft gerade". */
+.sync-schnellzugriff.dreht svg {
+  animation: sync-dreht 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-schnellzugriff.dreht svg {
+    animation: none;
+  }
+}
+
+@keyframes sync-dreht {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Zeigt Konto-Status (Angemeldet als/Zuletzt synchronisiert) und die
    zugehörigen Aktionsbuttons - lebt seit Version 1.32 innerhalb des
    "Verwaltung"-Abschnitts (siehe Abschnitt.tsx), daher hier bewusst nur noch

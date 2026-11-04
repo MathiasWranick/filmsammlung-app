@@ -79,3 +79,19 @@ export function RasterIcon() {
     </IconHuelle>
   )
 }
+
+// Version 1.59: Einzelner, rotierender Kreispfeil ("Neu laden"/"Sync") für
+// den Schnellzugriff-Sync-Button im Kopfbereich (siehe App.tsx). Bewusst ein
+// EIGENES, von TauschIcon verschiedenes Icon statt dessen Wiederverwendung,
+// obwohl beide aus zwei gebogenen Pfeilen bestehen könnten: TauschIcon steht
+// bereits fest für "Verleihen" (Tausch zweier Parteien) auf der Filmkarte -
+// ein identisches Symbol hier hätte die neue, ganz andere Aktion ("jetzt
+// synchronisieren") leicht mit "Verleihen" verwechselbar gemacht.
+export function SyncIcon() {
+  return (
+    <IconHuelle>
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <polyline points="21 3 21 9 15 9" />
+    </IconHuelle>
+  )
+}

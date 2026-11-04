@@ -22,6 +22,7 @@ import Datensicherung from './components/Datensicherung'
 import FilmFormular from './components/FilmFormular'
 import FilmListe from './components/FilmListe'
 import KontoLeiste from './components/KontoLeiste'
+import { SyncIcon } from './components/Icons'
 import Overlay from './components/Overlay'
 import Speicherwartung from './components/Speicherwartung'
 import VerleihKatalog from './components/VerleihKatalog'
@@ -451,9 +452,41 @@ function App() {
 
   return (
     <div className="page">
-      <h1>
-        Filmsammlung <span className="build-version">Build {BUILD_VERSION}</span>
-      </h1>
+      <div className="kopfzeile">
+        <h1>
+          Filmsammlung <span className="build-version">Build {BUILD_VERSION}</span>
+        </h1>
+
+        {/* Version 1.59: Schnellzugriff-Button für die Synchronisation, direkt
+            im Kopfbereich - auf Nutzerwunsch ("Manueller Start der
+            Synchronisation ohne Öffnen des Verwaltungsmenüs"), weil dafür
+            bisher immer erst der komplette "Verwaltung"-Abschnitt aufgeklappt
+            werden musste, nur um den dort liegenden "Jetzt
+            synchronisieren"-Button in KontoLeiste.tsx zu erreichen. Ruft
+            bewusst dieselbe Funktion (syncAusfuehren, über denselben
+            mitNutzerInteraktion()-Wrapper wie dort) auf statt einer eigenen
+            Kopie - beide Buttons lösen exakt dieselbe Synchronisierung aus,
+            nur von zwei verschiedenen Stellen in der Oberfläche. Nur
+            sichtbar, wenn bereits ein Konto angemeldet ist (gleiche
+            Bedingung wie der Button in KontoLeiste.tsx) - ohne Anmeldung gibt
+            es nichts zu synchronisieren, und das Anmelden selbst bleibt
+            bewusst dem "Verwaltung"-Abschnitt vorbehalten (kein zusätzlicher
+            Anmelde-Einstiegspunkt nötig). Der Sync-Status selbst (Punkt/Text)
+            ist weiterhin ausschließlich am "Verwaltung"-Kopf zu sehen (siehe
+            dort, Version 1.37) - hier geht es nur um das Auslösen. */}
+        {kontoPruefungAbgeschlossen && konto && (
+          <button
+            type="button"
+            className={`sync-schnellzugriff${syncLaeuft ? ' dreht' : ''}`}
+            onClick={() => mitNutzerInteraktion(syncAusfuehren)}
+            disabled={syncLaeuft}
+            title={syncLaeuft ? 'Synchronisation läuft …' : 'Jetzt synchronisieren'}
+            aria-label={syncLaeuft ? 'Synchronisation läuft …' : 'Jetzt synchronisieren'}
+          >
+            <SyncIcon />
+          </button>
+        )}
+      </div>
 
       {/* "Verwaltung" (Ausbaustufe 3, Feinschliff/Version 1.32): fasst alles
           Administrative - Konto-/Sync-Status und -Aktionen sowie die
