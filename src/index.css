@@ -446,25 +446,51 @@ body {
   flex: 1;
 }
 
-/* Version 1.56: Eigenständiges, immer sichtbares Titel-Suchfeld oberhalb des
-   "Filter"-Abschnitts (siehe FilmListe.tsx zum Hintergrund - zuvor Teil der
-   ".filterleiste" unten, auf Nutzerwunsch herausgelöst, damit man dafür
-   nicht erst das komplette Filter-Menü aufklappen muss). Volle Breite und
-   etwas großzügigere Schriftgröße/Innenabstand als die übrigen Filterfelder
-   (die kompakt nebeneinander stehen) - hier ist das Suchfeld bewusst das
-   einzige, prominente Element in seiner Zeile. */
+/* Version 1.56/1.57: Eigenständiges, immer sichtbares Titel-Suchfeld,
+   unterhalb von "Filter" und "Sortieren" (siehe FilmListe.tsx zum
+   Hintergrund - zuvor Teil der ".filterleiste" unten, auf Nutzerwunsch
+   herausgelöst, damit man dafür nicht erst das komplette Filter-Menü
+   aufklappen muss). Volle Breite und etwas großzügigere Schriftgröße/
+   Innenabstand als die übrigen Filterfelder (die kompakt nebeneinander
+   stehen) - hier ist das Suchfeld bewusst das einzige, prominente Element
+   in seiner Zeile. "position: relative" (Version 1.57) dient als
+   Bezugsrahmen für den absolut positionierten Lösch-Button (".
+   titelsuche-loeschen" unten), der rechts im Suchfeld selbst sitzt. */
 .titelsuche {
+  position: relative;
   margin-bottom: 0.75rem;
 }
 
 .titelsuche input {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.6rem 0.75rem;
+  /* Rechts zusätzlich Platz für den Lösch-Button (Version 1.57) - ohne das
+     würde eingegebener Text unter dem "×" hervorlugen/überlappen. */
+  padding: 0.6rem 2.25rem 0.6rem 0.75rem;
   font-size: 1rem;
   font-family: inherit;
   border: 1px solid #d1d5db;
   border-radius: 0.5rem;
+}
+
+/* Version 1.57: Lösch-Button ("×") am rechten Rand des Titel-Suchfelds -
+   leert per Klick gezielt nur die Suche (siehe FilmListe.tsx), ohne den
+   Umweg über "Filter zurücksetzen". Gleiche schlichte "×"-Optik wie die
+   Schließen-Buttons der Overlays (siehe ".overlay-schliessen" unten), hier
+   aber per "position: absolute" senkrecht im Suchfeld zentriert statt in
+   einer eigenen Kopfzeile. */
+.titelsuche-loeschen {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  color: #6b7280;
 }
 
 /* Seit Version 1.32 innerhalb des ein-/ausklappbaren "Filter"-Abschnitts

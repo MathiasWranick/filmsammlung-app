@@ -336,27 +336,6 @@ function FilmListe({
 
   return (
     <div>
-      {/* Version 1.56: Eigenständiges, immer sichtbares Titel-Suchfeld -
-          zuvor Teil des ein-/ausklappbaren "Filter"-Abschnitts unten (siehe
-          Änderungshistorie Version 1.32). Auf dem Handy musste man dafür
-          bisher erst das komplette Filter-Menü aufklappen, was praktisch den
-          ganzen Bildschirm verdeckte, nur um nach einem Titel zu suchen
-          (Nutzer-Usability-Anforderung). Bewusst außerhalb von Abschnitt
-          platziert statt als weiteres Feld darin - dadurch bleibt es
-          unabhängig vom Auf-/Zugeklappt-Zustand des Filter-Abschnitts immer
-          erreichbar. Nutzt weiterhin denselben "filter.suche"-Zustand wie
-          zuvor (siehe feldAendern/FILTER_STANDARD) - "Filter zurücksetzen"
-          unten leert daher wie bisher auch die Suche mit. */}
-      <div className="titelsuche">
-        <input
-          type="text"
-          value={filter.suche}
-          onChange={(ereignis) => feldAendern('suche', ereignis.target.value)}
-          placeholder="Titel suchen …"
-          aria-label="Titel suchen"
-        />
-      </div>
-
       <Abschnitt titel="Filter" symbol="▽" badge={filterAktivAnzahl(filter)}>
         <div className="filterleiste">
           <select value={filter.format} onChange={(ereignis) => feldAendern('format', ereignis.target.value as Format | '')}>
@@ -448,6 +427,44 @@ function FilmListe({
           </select>
         </div>
       </Abschnitt>
+
+      {/* Version 1.56/1.57: Eigenständiges, immer sichtbares Titel-Suchfeld -
+          zuvor Teil des ein-/ausklappbaren "Filter"-Abschnitts oben (siehe
+          Änderungshistorie Version 1.32). Auf dem Handy musste man dafür
+          bisher erst das komplette Filter-Menü aufklappen, was praktisch den
+          ganzen Bildschirm verdeckte, nur um nach einem Titel zu suchen
+          (Nutzer-Usability-Anforderung). Bewusst außerhalb von Abschnitt
+          platziert statt als weiteres Feld darin - dadurch bleibt es
+          unabhängig vom Auf-/Zugeklappt-Zustand der Filter-/Sortieren-
+          Abschnitte immer erreichbar. Auf Nutzerwunsch unterhalb von
+          "Sortieren" statt ganz oben platziert (Version 1.57). Nutzt
+          weiterhin denselben "filter.suche"-Zustand wie zuvor (siehe
+          feldAendern/FILTER_STANDARD) - "Filter zurücksetzen" oben leert
+          daher wie bisher auch die Suche mit. Das "×" daneben (Version 1.57)
+          leert NUR die Suche, per direktem Klick statt über den allgemeinen
+          Filter-Reset - erscheint erst, sobald tatsächlich etwas eingegeben
+          wurde (siehe "filter.suche &&" unten), damit es bei leerem Feld
+          nicht wirkungslos im Weg steht. */}
+      <div className="titelsuche">
+        <input
+          type="text"
+          value={filter.suche}
+          onChange={(ereignis) => feldAendern('suche', ereignis.target.value)}
+          placeholder="Titel suchen …"
+          aria-label="Titel suchen"
+        />
+        {filter.suche && (
+          <button
+            type="button"
+            className="titelsuche-loeschen"
+            onClick={() => feldAendern('suche', '')}
+            title="Suche löschen"
+            aria-label="Suche löschen"
+          >
+            ×
+          </button>
+        )}
+      </div>
 
       <div className="ansicht-kopf">
         <p className="hint">
