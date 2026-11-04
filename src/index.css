@@ -20,6 +20,33 @@ body {
   padding: 2rem 1.5rem;
 }
 
+/* Version 1.56: Adaptive Breite auf breiten Bildschirmen (Desktop), als
+   Standardverhalten ganz ohne zusätzlichen Umschalt-Button, auf Nutzerwunsch
+   (Usability-Anforderung "adaptive Breite für Fullscreen-Darstellung").
+   32rem war ursprünglich bewusst auf die Mobile-Nutzung hin optimiert (siehe
+   Architekturkonzept) und blieb seitdem unverändert auch auf dem Desktop
+   bestehen - dort verschenkte das zunehmend Platz, insbesondere in der
+   Rasteransicht (Version 1.46), deren Kachelgröße sich eigentlich an die
+   verfügbare Breite anpasst (siehe ".film-raster" unten), aber durch die
+   feste Breite hier nie zur Geltung kam. Die Breakpoints orientieren sich an
+   gängigen Fenstergrößen (60rem ≈ kleineres Desktop-/Tablet-Querformat-
+   Fenster, 90rem ≈ großer/breiter Monitor); auf dem Handy (unterhalb von
+   60rem) bleibt alles unverändert bei 32rem. Bewusst keine randlose, völlig
+   unbegrenzte Breite selbst auf sehr breiten Monitoren - das würde in der
+   Listenansicht zu unangenehm langen Textzeilen führen; die Rasteransicht
+   profitiert trotzdem weiterhin zusätzlich von mehr Spalten pro Zeile. */
+@media (min-width: 60rem) {
+  .page {
+    max-width: 60rem;
+  }
+}
+
+@media (min-width: 90rem) {
+  .page {
+    max-width: 75rem;
+  }
+}
+
 .hint {
   color: #6b7280;
 }
