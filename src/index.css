@@ -14,12 +14,6 @@ body {
   overflow-x: hidden;
 }
 
-.page {
-  max-width: 32rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
-}
-
 /* Version 1.56: Adaptive Breite auf breiten Bildschirmen (Desktop), als
    Standardverhalten ganz ohne zusätzlichen Umschalt-Button, auf Nutzerwunsch
    (Usability-Anforderung "adaptive Breite für Fullscreen-Darstellung").
@@ -28,23 +22,24 @@ body {
    bestehen - dort verschenkte das zunehmend Platz, insbesondere in der
    Rasteransicht (Version 1.46), deren Kachelgröße sich eigentlich an die
    verfügbare Breite anpasst (siehe ".film-raster" unten), aber durch die
-   feste Breite hier nie zur Geltung kam. Die Breakpoints orientieren sich an
-   gängigen Fenstergrößen (60rem ≈ kleineres Desktop-/Tablet-Querformat-
-   Fenster, 90rem ≈ großer/breiter Monitor); auf dem Handy (unterhalb von
-   60rem) bleibt alles unverändert bei 32rem. Bewusst keine randlose, völlig
-   unbegrenzte Breite selbst auf sehr breiten Monitoren - das würde in der
-   Listenansicht zu unangenehm langen Textzeilen führen; die Rasteransicht
-   profitiert trotzdem weiterhin zusätzlich von mehr Spalten pro Zeile. */
-@media (min-width: 60rem) {
-  .page {
-    max-width: 60rem;
-  }
-}
+   feste Breite hier nie zur Geltung kam.
 
-@media (min-width: 90rem) {
-  .page {
-    max-width: 75rem;
-  }
+   clamp(32rem, 94vw, 120rem) statt fester Fenstergrößen-Stufen (erster
+   Versuch, im Praxistest auf einem WQHD-Monitor als noch zu knapp bewertet -
+   zu viel ungenutzter Platz links/rechts): Die mittlere Vorgabe (94vw) bindet
+   die Breite direkt an die tatsächliche, aktuelle Fensterbreite, skaliert
+   also stufenlos mit jeder beliebigen Bildschirm-/Fenstergröße mit, statt
+   anhand fest einprogrammierter Auflösungen zu raten. Die untere Grenze
+   (32rem) verhindert dabei nichts auf dem Handy - dort ist 94vw ohnehin
+   schmaler als 32rem, der tatsächlich sichtbare Bereich bleibt also wie
+   gehabt. Die obere Grenze (120rem ≈ 1920px bei Standard-Schriftgröße)
+   verhindert nur, dass auf sehr breiten Monitoren (z. B. Ultrawide/4K) der
+   Inhalt randlos über das gesamte Fenster gezogen wird - in der
+   Listenansicht würden sonst unangenehm lange Textzeilen entstehen. */
+.page {
+  max-width: clamp(32rem, 94vw, 120rem);
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
 }
 
 .hint {
@@ -366,13 +361,17 @@ body {
 }
 
 /* Rasteransicht (Version 1.46) - zeigt ausschließlich Frontcover, siehe
-   FilmKachel in FilmListe.tsx. minmax(7rem, 1fr) sorgt dafür, dass die
+   FilmKachel in FilmListe.tsx. minmax(9rem, 1fr) sorgt dafür, dass die
    Kachelgröße sich automatisch an die Bildschirmbreite anpasst, ohne eigene
    @media-Regel: auf dem Handy passen so 2-3 Kacheln pro Zeile, auf einem
-   breiten Desktop-Fenster entsprechend mehr. */
+   breiten Desktop-Fenster entsprechend mehr. Mindestgröße seit Version 1.56
+   von 7rem auf 9rem angehoben (zusammen mit der adaptiven Seitenbreite oben):
+   Bei mehr verfügbarer Breite entstehen dadurch spürbar größere statt nur
+   zahlreichere Kacheln - auf Nutzer-Feedback im Praxistest auf einem
+   WQHD-Monitor hin etwas großzügiger gewählt. */
 .film-raster {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: 0.75rem;
   list-style: none;
   padding: 0;
