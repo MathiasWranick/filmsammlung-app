@@ -3,7 +3,7 @@ import { FILTER_STANDARD, FORMATE, TYPEN, type Film, type Filterzustand, type Fo
 import { fotoMiniaturLaden } from '../db/fotos'
 import Abschnitt from './Abschnitt'
 import FilmAnzeige from './FilmAnzeige'
-import { AugeIcon, ListenIcon, PapierkorbIcon, RasterIcon, StiftIcon, TauschIcon } from './Icons'
+import { AugeIcon, ListenIcon, PapierkorbIcon, RasterIcon, StiftIcon, SyncIcon, TauschIcon } from './Icons'
 import VerleihOverlay from './VerleihOverlay'
 
 const FSK_STUFEN = ['0', '6', '12', '16', '18']
@@ -263,6 +263,17 @@ interface Props {
   onBearbeiten: (film: Film) => void
   onLoeschen: (id: string) => void
   onVerleihStatusAendern: (id: string, ausgeliehenAn: string | undefined, ausgeliehenAm: string | undefined) => void
+  // Version 1.59/1.60: Schnellzugriff-Sync-Button neben dem Listen-/
+  // Rasteransicht-Umschalter (siehe ganz unten in dieser Datei) - die
+  // eigentliche Sync-Logik/der Kontostatus bleiben weiterhin in App.tsx
+  // (dort auch von KontoLeiste.tsx genutzt), hier kommen nur die drei dafür
+  // nötigen Werte als Props an: ob der Button überhaupt angezeigt werden
+  // soll (syncVerfuegbar - nur wenn angemeldet), ob gerade synchronisiert
+  // wird (syncLaeuft, steuert Dreh-Animation/"disabled"), und die
+  // auszuführende Aktion selbst (onSynchronisieren).
+  syncVerfuegbar: boolean
+  syncLaeuft: boolean
+  onSynchronisieren: () => void
 }
 
 function FilmListe({
@@ -273,6 +284,9 @@ function FilmListe({
   onBearbeiten,
   onLoeschen,
   onVerleihStatusAendern,
+  syncVerfuegbar,
+  syncLaeuft,
+  onSynchronisieren,
 }: Props) {
   // Welcher Film gerade im Anzeige- bzw. Verleih-Overlay offen ist - rein
   // lokaler Anzeigezustand der Liste, muss nicht bis nach App.tsx hochgereicht
@@ -467,11 +481,40 @@ function FilmListe({
       </div>
 
       <div className="ansicht-kopf">
+        {/* Version 1.60: "angezeigt" entfernt (reines Kürzen auf Nutzerwunsch)
+            - macht die Zeile kürzer und kollidiert dadurch auf dem Handy
+            nicht mehr mit dem links daneben neu hinzugekommenen
+            Sync-Button. */}
         <p className="hint">
-          {filme.length} von {gesamtAnzahl} Filmen angezeigt
+          {filme.length} von {gesamtAnzahl} Filmen
         </p>
 
         <div className="ansicht-umschalter">
+          {/* Version 1.60: Schnellzugriff-Sync-Button, umgezogen aus dem
+              App-Kopfbereich (siehe App.tsx-Changelog Version 1.59) - dort
+              überlappte er auf dem Handy unglücklich mit dem Titel
+              "Filmsammlung" (Nutzer-Feedback). Hier, direkt links neben dem
+              Listen-/Raster-Umschalter unterhalb der Titelsuche, ist mehr
+              Platz und die Gruppierung mit den beiden anderen
+              Icon-Buttons dieser Zeile wirkt aufgeräumter. Nutzt dieselbe
+              ".ansicht-umschalter button"-Optik wie Listen-/Rasteransicht
+              automatisch mit, ganz ohne eigene Button-Klasse - nur die
+              Dreh-Animation während des Syncs (".dreht", siehe index.css)
+              kommt zusätzlich dazu. Nur sichtbar, wenn bereits angemeldet
+              (syncVerfuegbar, aus App.tsx) - ohne Anmeldung gibt es nichts zu
+              synchronisieren. */}
+          {syncVerfuegbar && (
+            <button
+              type="button"
+              className={syncLaeuft ? 'dreht' : undefined}
+              onClick={onSynchronisieren}
+              disabled={syncLaeuft}
+              title={syncLaeuft ? 'Synchronisation läuft …' : 'Jetzt synchronisieren'}
+              aria-label={syncLaeuft ? 'Synchronisation läuft …' : 'Jetzt synchronisieren'}
+            >
+              <SyncIcon />
+            </button>
+          )}
           <button
             type="button"
             className={ansicht === 'liste' ? 'aktiv' : undefined}

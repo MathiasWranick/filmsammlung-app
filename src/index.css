@@ -52,59 +52,22 @@ body {
   color: #6b7280;
 }
 
-/* Version 1.59: Kopfzeile mit Titel ("h1", unverändert) und dem neuen
-   Schnellzugriff-Sync-Button nebeneinander (siehe App.tsx). flex-wrap sorgt
-   dafür, dass der Button auf sehr schmalen Bildschirmen notfalls in eine
-   eigene Zeile umbricht statt den Titel abzuschneiden - in der Praxis selten
-   nötig, da der Button deutlich schmaler als der Titel ist. */
-.kopfzeile {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.kopfzeile h1 {
-  margin: 0;
-}
-
-/* Gleiche Buttongröße/-optik wie die übrigen Icon-Buttons der App (siehe
-   ".film-aktionen button"/".ansicht-umschalter button"), damit sich der neue
-   Schnellzugriff-Button optisch einfügt statt wie ein Fremdkörper zu wirken. */
-.sync-schnellzugriff {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border: 1px solid #d1d5db;
-  border-radius: 0.4rem;
-  background: canvas;
-  color: canvastext;
-  cursor: pointer;
-}
-
-.sync-schnellzugriff svg {
-  width: 1.15rem;
-  height: 1.15rem;
-}
-
-/* Dreht das Icon, solange ein Sync läuft (Klasse "dreht" wird in App.tsx nur
-   dann gesetzt) - ersetzt hier die Textänderung ("Synchronisiert …"), die
-   der große Button in KontoLeiste.tsx zur Rückmeldung nutzt: Für einen
-   reinen Icon-Button ohne sichtbaren Text ist eine Animation die passende
-   Entsprechung. prefers-reduced-motion respektiert dabei Nutzer, die
-   Bewegungseffekte reduziert haben möchten - der Button bleibt für sie
-   trotzdem über "disabled" erkennbar als "läuft gerade". */
-.sync-schnellzugriff.dreht svg {
+/* Version 1.59/1.60: Dreht das Sync-Icon im Listen-/Raster-Umschalter
+   (siehe ".ansicht-umschalter" weiter unten sowie FilmListe.tsx sowie
+   App.tsx-Changelog Version 1.59 zur Entstehung), solange ein Sync läuft
+   (Klasse "dreht" wird dort nur dann gesetzt) - ersetzt hier die
+   Textänderung ("Synchronisiert …"), die der große Button in
+   KontoLeiste.tsx zur Rückmeldung nutzt: Für einen reinen Icon-Button ohne
+   sichtbaren Text ist eine Animation die passende Entsprechung.
+   prefers-reduced-motion respektiert dabei Nutzer, die Bewegungseffekte
+   reduziert haben möchten - der Button bleibt für sie trotzdem über
+   "disabled" erkennbar als "läuft gerade". */
+.ansicht-umschalter button.dreht svg {
   animation: sync-dreht 1s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sync-schnellzugriff.dreht svg {
+  .ansicht-umschalter button.dreht svg {
     animation: none;
   }
 }
@@ -424,6 +387,16 @@ body {
   background: canvastext;
   color: canvas;
   border-color: canvastext;
+}
+
+/* Version 1.60: Bisher wurde in dieser Gruppe nie ein Button deaktiviert
+   (Listen-/Rasteransicht lassen sich immer umschalten) - mit dem neuen
+   Sync-Button (siehe FilmListe.tsx), der während eines laufenden Syncs kurz
+   "disabled" ist, braucht es dafür jetzt erstmals eine eigene, dezente
+   Optik, statt dass der Button dabei unverändert klickbar aussieht. */
+.ansicht-umschalter button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Rasteransicht (Version 1.46) - zeigt ausschließlich Frontcover, siehe
